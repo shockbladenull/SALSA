@@ -40,7 +40,20 @@ Install [SpTr](https://github.com/dvlab-research/SparseTransformer) from source.
 
 
 ### 📊💾 Dataset Download
-The model is trained on Mulran Sejong 01/02 sequences and Apollo Southbay (excluding Sunnyvale). Evaluation is performed on 'easy set': Apollo-Southbay (Sunnyvale), SemanticKITTI, Mulran Sejong, and 'hard set': Mulran DCC1/DCC2, KITTI360, ALITA. The datasets can be downloaded from the following links.
+The model is: 
+- Trained on 
+    - Mulran Sejong 01/02 sequences and 
+    - Apollo Southbay (excluding Sunnyvale). 
+- Evaluation is performed on 'easy set':
+    - Apollo-Southbay (Sunnyvale), 
+    - SemanticKITTI, 
+    - Mulran Sejong, 
+- and 'hard set':
+    - Mulran DCC1/DCC2, 
+    - KITTI360, 
+    - ALITA. 
+
+The datasets can be downloaded from the following links.
 - [MulRan](https://sites.google.com/view/mulran-pr/download) dataset: ground truth data (*.csv) and LiDAR point clouds (Ouster.zip).
 - [Apollo-Southbay](https://developer.apollo.auto/southbay.html) dataset.
 - [SemanticKITTI](http://semantic-kitti.org/dataset.html#download) dataset (velodyne point clouds and calibration data for poses).
