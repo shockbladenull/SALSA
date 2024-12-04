@@ -30,9 +30,9 @@ def read_json_file(file_path):
 class SejongSouthbayLoader(Dataset):
     def __init__(self, all_file_loc = None, pcl_transform=None):
         if all_file_loc==None:
-            with open('/data/raktim/Datasets/Apollo-Southbay/train_southbay_2_10.pickle', 'rb') as file:
+            with open('/home/ljc/Dataset/Apollo-Southbay/train_southbay_2_10.pickle', 'rb') as file:
                 self.southbay_data_dict = pickle.load(file)
-            with open('/data/raktim/Datasets/Mulran/Sejong/train_Sejong1_Sejong2_2_10.pickle', 'rb') as file:
+            with open('/home/ljc/Dataset/Mulran/Sejong/train_Sejong1_Sejong2_2_10.pickle', 'rb') as file:
                 self.sejong_data_dict = pickle.load(file)
 
 
@@ -49,6 +49,7 @@ class SejongSouthbayLoader(Dataset):
                 self.pos_pairs_ind.append(self.southbay_data_dict[i].positives.tolist())
                 self.non_negative_pairs_ind.append(self.southbay_data_dict[i].non_negatives.tolist())
                 self.is_southbay.append(1)
+            # print('jump Southbay')
             ############# For Sejong ####################################
             len_southbay = len(self.southbay_data_dict)
 
