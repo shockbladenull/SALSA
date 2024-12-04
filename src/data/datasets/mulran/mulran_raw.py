@@ -1,5 +1,9 @@
 # Functions and classes operating on a raw Mulran dataset
 
+import sys
+sys.path.append('/home/ljc/SALSA/src/data')  # 或者 '/home/ljc/SALSA/src'
+
+
 import os
 from typing import List
 
@@ -165,7 +169,7 @@ class MulranSequences(Dataset):
 
 
 if __name__ == '__main__':
-    dataset_root = '/media/sf_Datasets/MulRan'
+    dataset_root = '/home/ljc/Dataset/Mulran/Sejong'
     sequence_names = ['Sejong01']
 
     db = MulranSequences(dataset_root, sequence_names, split='train')
@@ -173,6 +177,7 @@ if __name__ == '__main__':
     e = db[0]
 
     res = db.find_neighbours_ndx(e['position'], radius=50)
+    print(res)
     print('.')
 
 
