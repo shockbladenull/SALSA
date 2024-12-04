@@ -3,4 +3,5 @@ src/checkpoints/
 *.pth
 *__pycache__/
 runs/
-.idea
+.idea/
+.vscode
