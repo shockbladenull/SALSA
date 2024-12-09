@@ -1,5 +1,8 @@
 import gc
 import os
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 import random
 import sys
 import time
@@ -39,7 +42,11 @@ def print_model_size(model):
 
 
 def main():
-    config = read_yaml_config(os.path.join(os.path.dirname(__file__),'config/train.yaml'))
+
+    print("Current device:", torch.cuda.current_device())
+    print("Device name:", torch.cuda.get_device_name(torch.cuda.current_device()))
+
+    config = read_yaml_config(os.path.join(os.path.dirname(__file__), 'config/train.yaml'))
     writer = SummaryWriter(config['writer_loc'])
     # Get data loader
     batch_size = config['batch_size']
@@ -48,6 +55,16 @@ def main():
     device = config['device']
 
     model = SALSA(voxel_sz=0.5).to(device)
+
+    # 检查是否存在已保存的模型权重文件
+    checkpoint_path = os.path.join(os.path.dirname(__file__), 'checkpoints/SALSA/Model/model_27.pth')
+    start_epoch = 0
+    if os.path.exists(checkpoint_path):
+        print(f"Loading model from {checkpoint_path}")
+        model.load_state_dict(torch.load(checkpoint_path))
+        # 读取已训练的轮次
+        start_epoch = int(checkpoint_path.split('_')[-1].split('.')[0]) + 1
+        print('continue train from epoch', start_epoch)
 
     model.train()
     print_nb_params(model)
@@ -59,33 +76,32 @@ def main():
 
     kk_batch = 0
     kk_subcache = 0
-    for e in range(MAX_EPOCH):
+    for e in range(start_epoch, MAX_EPOCH):
         EPOCH_LOSS = []
         time1 = time.time()
         dataset.new_epoch()
-        steps_per_epoch = int(np.ceil(1000/batch_size))
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=config['max_lr'],epochs=dataset.nCacheSubset, steps_per_epoch=steps_per_epoch,anneal_strategy='cos', cycle_momentum=False)
+        steps_per_epoch = int(np.ceil(1000 / batch_size))
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=config['max_lr'], epochs=dataset.nCacheSubset, steps_per_epoch=steps_per_epoch, anneal_strategy='cos', cycle_momentum=False)
         lr_list = [scheduler.get_last_lr()]
         for ii in range(dataset.nCacheSubset):
-            scheduler.step((ii+1)*steps_per_epoch)
+            scheduler.step((ii + 1) * steps_per_epoch)
             lr_list.append(scheduler.get_last_lr())
 
-        for current_subset in range(0,dataset.nCacheSubset):
+        for current_subset in range(0, dataset.nCacheSubset):
             CACHE_LOSS = []
-
-            dataset.current_subset=current_subset
-            dataset.update_subcache(model,outputdim=config['outdim'])
-            if len(dataset.triplets)==0:
+            dataset.current_subset = current_subset
+            dataset.update_subcache(model, outputdim=config['outdim'])
+            if len(dataset.triplets) == 0:
                 continue
             model.train()
-            data_loader = torch.utils.data.DataLoader(dataset=dataset,shuffle=True, batch_size=batch_size,collate_fn=tuple_collate_fn, num_workers=16)
-            scheduler_lr = np.linspace(lr_list[current_subset],lr_list[current_subset+1],len(data_loader))
-            
+            data_loader = torch.utils.data.DataLoader(dataset=dataset, shuffle=True, batch_size=batch_size, collate_fn=tuple_collate_fn, num_workers=16)
+            scheduler_lr = np.linspace(lr_list[current_subset], lr_list[current_subset + 1], len(data_loader))
+
             for i, batch_data in enumerate(data_loader):
                 model.zero_grad()
                 optimizer.zero_grad()
                 coord, xyz, feat, batch_number, labels, point_pos_pairs = batch_data
-                coord, xyz, feat, batch_number, labels = coord.to(device), xyz.to(device), feat.to(device), batch_number.to(device),labels.to(device)
+                coord, xyz, feat, batch_number, labels = coord.to(device), xyz.to(device), feat.to(device), batch_number.to(device), labels.to(device)
                 local_features, global_descriptor = model(coord, xyz, feat, batch_number)
 
                 loss = find_loss(local_features, global_descriptor, point_pos_pairs)
@@ -98,13 +114,14 @@ def main():
                 writer.add_scalar("Batch LR", last_lr, kk_batch)
                 kk_batch += 1
                 CACHE_LOSS.append(loss.item())
-                sys.stdout.write('\r' + 'Epoch ' + str(e + 1) + ' / ' + str(MAX_EPOCH) + ' Subset ' + str(current_subset + 1) + ' / ' + str(dataset.nCacheSubset) + ' Progress ' + str(i+1) + ' / ' + str(len(data_loader))+ ' Loss ' + str(format(loss.item(),'.2f')) + ' time '+ str(format(time.time()-time1,'.2f'))+' seconds.')
+                sys.stdout.write('\r' + 'Epoch ' + str(e + 1) + ' / ' + str(MAX_EPOCH) + ' Subset ' + str(current_subset + 1) + ' / ' + str(dataset.nCacheSubset) + ' Progress ' + str(i + 1) + ' / ' + str(len(data_loader)) + ' Loss ' + str(format(loss.item(), '.2f')) + ' time ' + str(format(time.time() - time1, '.2f')) + ' seconds.')
 
-            torch.save(model.state_dict(),os.path.join(os.path.dirname(__file__),'checkpoints/SALSA/Model/model_'+str(e)+'.pth'))
-            del coord, xyz, feat, batch_number, labels,  local_features, global_descriptor, point_pos_pairs
+            torch.save(model.state_dict(), os.path.join(os.path.dirname(__file__), f'checkpoints/SALSA/Model/model_{e}.pth'))
+            torch.save(model.state_dict(), checkpoint_path)  # 保存最新的模型权重
+            del coord, xyz, feat, batch_number, labels, local_features, global_descriptor, point_pos_pairs
             gc.collect()
             torch.cuda.empty_cache()
-            cache_loss_avg = sum(CACHE_LOSS)/len(CACHE_LOSS)*steps_per_epoch
+            cache_loss_avg = sum(CACHE_LOSS) / len(CACHE_LOSS) * steps_per_epoch
 
             writer.add_scalar("Subcache Loss", cache_loss_avg, kk_subcache)
             writer.add_scalar("Subcache LR", last_lr, kk_subcache)
@@ -113,8 +130,9 @@ def main():
             EPOCH_LOSS.append(cache_loss_avg)
             print(' ')
             print('Avg. Subcache Loss', cache_loss_avg)
-        torch.save(model.state_dict(),os.path.join(os.path.dirname(__file__),'checkpoints/SALSA/Model/model_'+str(e)+'.pth'))
-        epoch_loss_avg = sum(EPOCH_LOSS)/len(EPOCH_LOSS)
+        torch.save(model.state_dict(), os.path.join(os.path.dirname(__file__), f'checkpoints/SALSA/Model/model_{e}.pth'))
+        torch.save(model.state_dict(), checkpoint_path)  # 保存最新的模型权重
+        epoch_loss_avg = sum(EPOCH_LOSS) / len(EPOCH_LOSS)
         print(' ')
         print('Avg. EPOCH Loss', epoch_loss_avg)
         writer.add_scalar("Epoch Loss", epoch_loss_avg, e)
