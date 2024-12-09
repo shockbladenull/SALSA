@@ -45,9 +45,9 @@ class SejongSouthbayLoader(Dataset):
             for i in range(len(self.sejong_data_dict)):
                 self.all_file_loc.append(self.sejong_data_dict[i].rel_scan_filepath)
         elif sequence=='all':
-            with open('/data/raktim/Datasets/Apollo-Southbay/train_southbay_2_10.pickle', 'rb') as file:
+            with open('/home/ljc/Dataset/Apollo-Southbay/train_southbay_2_10.pickle', 'rb') as file:
                 self.southbay_data_dict = pickle.load(file)
-            with open('/data/raktim/Datasets/Mulran/Sejong/train_Sejong1_Sejong2_2_10.pickle', 'rb') as file:
+            with open('/home/ljc/Dataset/Mulran/Sejong/train_Sejong1_Sejong2_2_10.pickle', 'rb') as file:
                 self.sejong_data_dict = pickle.load(file)
 
             self.all_file_loc = []
@@ -276,7 +276,7 @@ def main():
     torch.use_deterministic_algorithms(True)
     device = 'cuda'
     model = SALSA(voxel_sz=0.5)
-    load_path = os.path.join(os.path.dirname(__file__),'../checkpoints/SALSA/Model/model_26.pth')
+    load_path = os.path.join(os.path.dirname(__file__),'../checkpoints/SALSA/Model/model_27.pth')
     checkpoint = torch.load(load_path)  # ,map_location='cuda:0')
     model.load_state_dict(checkpoint)
     model.to(device)
