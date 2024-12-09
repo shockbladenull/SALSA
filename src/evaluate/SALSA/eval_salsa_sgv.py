@@ -3,6 +3,9 @@
 import argparse
 import copy
 import os
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 import pickle
 import random
 import sys
@@ -565,11 +568,13 @@ if __name__ == "__main__":
     parser.add_argument('--d_thresh', type=float, default=0.4, help='Dist thresholds in meters')
     parser.add_argument('--n_topk', type=int, default=20, help='Dist thresholds in meters')
     parser.add_argument('--icp_refine', dest='icp_refine', action='store_true')
-    parser.add_argument('--only_global', type=bool, default=True, help='If False, also evaluates metric localization')
+    parser.add_argument('--only_global', type=bool, default=False, help='If False, also evaluates metric localization')
     parser.set_defaults(icp_refine=True)
     parser.add_argument('--voxel_size', type=float, default=0.5)
 
     args = parser.parse_args()
+    print(args)
+    
     if args.dataset_type == 'kitti':
         args.eval_set = 'kitti_00_eval.pickle'
         # args.dataset_root = '/data/raktim/Datasets/KITTI/dataset/'
@@ -606,13 +611,17 @@ if __name__ == "__main__":
     print('Device: {}'.format(device))
     # device = "cpu"
 
+    print("Current device:", torch.cuda.current_device())
+    print("Device name:", torch.cuda.get_device_name(torch.cuda.current_device()))
+
+
     # ####################### SALSA + PCA #################################################################
     model = CombinedModel(voxel_sz=args.voxel_size,num_in_features=512,num_out_features=256)
-    salsa_model_save_path = os.path.join(os.path.dirname(__file__),'../../checkpoints/SALSA/Model/model_26.pth')
+    salsa_model_save_path = os.path.join(os.path.dirname(__file__),'../../checkpoints/SALSA/Model/model_8.pth')
     checkpoint = torch.load(salsa_model_save_path)  # ,map_location='cuda:0')
     model.spherelpr.load_state_dict(checkpoint)
 
-    salsa_pca_save_path = os.path.join(os.path.dirname(__file__),'../../checkpoints/SALSA/PCA/pca_model_2.pth')
+    salsa_pca_save_path = os.path.join(os.path.dirname(__file__),'../../checkpoints/SALSA/PCA/pca_model.pth')
     model.pca_model.load_state_dict(torch.load(salsa_pca_save_path))
 
     model = model.to(device)
