@@ -4,7 +4,7 @@ import argparse
 import copy
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 import pickle
 import random
@@ -557,9 +557,10 @@ def print_model_size(model):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Evaluate MinkLoc model')
-    parser.add_argument('--dataset_root', type=str, required=False, default='', help='Path to the dataset root')
+    parser.add_argument('--salsa_model', type=str, required=False, default='model_20.pth')
+    parser.add_argument('--dataset_root', type=str, required=False, default='/home/ljc/Dataset/Mulran/Sejong', help='Path to the dataset root')
     parser.add_argument('--dataset_type', type=str, required=False, default='mulran', choices=['mulran', 'southbay', 'kitti', 'alita', 'kitti360'])
-    parser.add_argument('--mulran_sequence', type=str, required=False, default='dcc', choices=['sejong','dcc'])
+    parser.add_argument('--mulran_sequence', type=str, required=False, default='sejong', choices=['sejong','dcc'])
     parser.add_argument('--eval_set', type=str, required=False, default='kitti_00_eval.pickle', help='File name of the evaluation pickle (must be located in dataset_root')
     parser.add_argument('--radius', type=float, nargs='+', default=[5, 20], help='True Positive thresholds in meters')
     parser.add_argument('--n_samples', type=int, default=None, help='Number of elements sampled from the query sequence')
@@ -573,7 +574,9 @@ if __name__ == "__main__":
     parser.add_argument('--voxel_size', type=float, default=0.5)
 
     args = parser.parse_args()
-    print(args)
+    # print(args)
+    for arg, value in vars(args).items():
+        print(f"--{arg} {value}")
     
     if args.dataset_type == 'kitti':
         args.eval_set = 'kitti_00_eval.pickle'
@@ -596,13 +599,13 @@ if __name__ == "__main__":
         args.eval_set = 'kitti360_09_3.0_eval.pickle'
 
     args.weights = os.path.dirname(__file__) + args.weights
-    print(f'Dataset root: {args.dataset_root}')
-    print(f'Dataset type: {args.dataset_type}')
-    print(f'Evaluation set: {args.eval_set}')
-    print(f'Radius: {args.radius} [m]')
-    print(f'd_thresh: {args.d_thresh} [m]')
-    print(f'n_topk: {args.n_topk} ')
-    print('')
+    # print(f'Dataset root: {args.dataset_root}')
+    # print(f'Dataset type: {args.dataset_type}')
+    # print(f'Evaluation set: {args.eval_set}')
+    # print(f'Radius: {args.radius} [m]')
+    # print(f'd_thresh: {args.d_thresh} [m]')
+    # print(f'n_topk: {args.n_topk} ')
+    # print('')
 
     if torch.cuda.is_available():
         device = "cuda"
@@ -617,7 +620,9 @@ if __name__ == "__main__":
 
     # ####################### SALSA + PCA #################################################################
     model = CombinedModel(voxel_sz=args.voxel_size,num_in_features=512,num_out_features=256)
-    salsa_model_save_path = os.path.join(os.path.dirname(__file__),'../../checkpoints/SALSA/Model/model_8.pth')
+    # salsa_model_save_path = os.path.join(os.path.dirname(__file__),'../../checkpoints/SALSA/Model/model_30.pth')
+    salsa_model_save_path= os.path.join(os.path.dirname(__file__),'../../checkpoints/SALSA/Model/', args.salsa_model)
+    print(f'salsa_model_save_path: {salsa_model_save_path} ')
     checkpoint = torch.load(salsa_model_save_path)  # ,map_location='cuda:0')
     model.spherelpr.load_state_dict(checkpoint)
 
@@ -628,6 +633,21 @@ if __name__ == "__main__":
     evaluator = MetLocEvaluator(args.dataset_root, args.dataset_type, args.eval_set, device, radius=args.radius, k=args.n_topk,
                                    n_samples=args.n_samples, voxel_size=args.voxel_size,
                                    icp_refine=args.icp_refine)
+
+    start_time = time()                                   
+
     global_metrics, metrics = evaluator.evaluate(model, d_thresh=args.d_thresh, only_global=args.only_global)
+
+    end_time = time()
+    total_time = end_time - start_time
+    print(f"Evaluation time: {total_time:.2f} seconds")
+
+
+    start_time = time()                                   
+
     evaluator.print_results(global_metrics, metrics)
+
+    end_time = time()
+    total_time = end_time - start_time
+    print(f"Evaluation time: {total_time:.2f} seconds")
 
