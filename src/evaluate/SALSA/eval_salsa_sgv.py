@@ -255,7 +255,9 @@ class MetLocEvaluator(Evaluator):
                                                          local_map_embeddings[nn_idx])
 
                 t_ransac = time() - tick
+
                 nn_pose = self.eval_set.map_set[nn_idx].pose
+                # T_gt is np.linalg.inv(nn_pose) @ query_pose
                 if self.dataset_type == 'mulran':
                     T_gt = mulran_relative_pose(query_pose, nn_pose)
                 elif self.dataset_type == 'southbay':
@@ -268,6 +270,20 @@ class MetLocEvaluator(Evaluator):
                     T_gt = kitti360_relative_pose(query_pose, nn_pose)
                 else:
                     raise NotImplementedError('Unknown dataset type')
+                
+                #DEBUG
+                for n in nn_ndx:
+                    cur_pose = self.eval_set.map_set[n].pose
+                    T_ = mulran_relative_pose(query_pose, cur_pose)
+                    T_gtt = mulran_relative_pose(query_pose, nn_pose)
+                    print(n)
+                    print(nn_idx)
+                    delta_pose = cur_pose - nn_pose
+                    print(np.linalg.norm(delta_pose))
+                    print(np.linalg.norm(delta_pose[:3, 3]))
+                    print(np.linalg.norm(T_ - T_gtt))
+                    print(np.linalg.norm(T_ - T_gt))
+                second_pose = self.eval_set.map_set[nn_ndx[1]].pose
 
                 # Refine the pose using ICP
                 if not self.icp_refine:
@@ -300,6 +316,73 @@ class MetLocEvaluator(Evaluator):
 
                 # calc errors
                 rte = np.linalg.norm(T_estimated[:3, 3] - T_gt[:3, 3])
+
+
+                # DEBUG
+                # 输出距离查询点最近点的真实坐标
+                nearest_point_xyz = nn_pose[:3, 3]
+                nearest_point_xy = nn_pose[:2, 3]
+                print(f"Nearest point XYZ: {nearest_point_xyz}")
+                print(f"Nearest point XY: {nearest_point_xy}")
+
+                # 输出查询点的真实坐标
+                query_point_xyz = query_pose[:3, 3]
+                query_point_xy = query_pose[:2, 3]
+                print(f"Query point XYZ: {query_point_xyz}")
+                print(f"Query point XY: {query_point_xy}")
+
+                # 输出二者之间的距离
+                xyz_dis = np.lianlg.norm(nearest_point_xyz - query_point_xyz)
+                xy_dis = np.lianlg.norm(nearest_point_xy - query_point_xy)
+                print(xyz_dis)
+                print(xy_dis)
+                # ----------------------------------------------------------------------------------------------
+                # 将矩阵作用于点
+                # 这两种写法的结果是一样的
+                # _ = query_pose[:3, 3] = query_pose[:3, 3] @ T_estimated[:3, :3].transpose(1, 0) + T_estimated[:3, -1]
+                # transformed_pose = T_estimated @ query_pose_homogeneous
+                # 好像不用作用？
+                Ts = {'T_estimated': T_estimated, 'T_gt': T_gt}
+                poses = {'query_pose': query_pose, 'nn_pose': nn_pose}
+
+                for T_name, T in Ts.items():
+                    for pose_name, pose in poses.items():
+                        transformed_pose_1 = T @ pose
+                        transformed_pose_2 = pose @ T
+                        # print(f"{T} @ \n{pose} = \n{transformed_pose_1}")
+                        # print(f"{pose} @ \n{T} = \n{transformed_pose_2}")
+                        distance_xyz_1 = np.linalg.norm(transformed_pose_1[:3, 3] - nn_pose[:3, 3])
+                        distance_xy_1 = np.linalg.norm(transformed_pose_1[:2, 3] - nn_pose[:2, 3])
+                        distance_xyz_2 = np.linalg.norm(transformed_pose_2[:3, 3] - nn_pose[:3, 3])
+                        distance_xy_2 = np.linalg.norm(transformed_pose_2[:2, 3] - nn_pose[:2, 3])
+                        print(f"Distance in XYZ (using {T_name} @ {pose_name}): {distance_xyz_1}")
+                        print(f"Distance in XY (using {T_name} @ {pose_name}): {distance_xy_1}")
+                        print(f"Distance in XYZ (using {pose_name} @ {T_name}): {distance_xyz_2}")
+                        print(f"Distance in XY (using {pose_name} @ {T_name}): {distance_xy_2}")
+                        """
+                        Distance in XYZ (using T_estimated @ query_pose): 287318.49081961164
+                        Distance in XY (using T_estimated @ query_pose): 287010.11762801063
+                        Distance in XYZ (using query_pose @ T_estimated): 143683.2229467801
+                        Distance in XY (using query_pose @ T_estimated): 143545.60558230107
+                        Distance in XYZ (using T_estimated @ nn_pose): 143683.861823666
+                        Distance in XY (using T_estimated @ nn_pose): 143546.24681926807
+
+                        Distance in XYZ (using nn_pose @ T_estimated): 4.653481912855474
+                        Distance in XY (using nn_pose @ T_estimated): 4.653385523107071
+
+                        Distance in XYZ (using T_gt @ query_pose): 278815.467154478
+                        Distance in XY (using T_gt @ query_pose): 277618.77041948296
+                        Distance in XYZ (using query_pose @ T_gt): 143683.86870899878
+                        Distance in XY (using query_pose @ T_gt): 143546.2549886668
+                        Distance in XYZ (using T_gt @ nn_pose): 135484.80388246189
+                        Distance in XY (using T_gt @ nn_pose): 134136.63551571083
+
+                        Distance in XYZ (using nn_pose @ T_gt): 4.794887719954771
+                        Distance in XY (using nn_pose @ T_gt): 4.794753240919318
+                        """
+                # ----------------------------------------------------------------------------------------------
+
+
                 cos_rre = (np.trace(T_estimated[:3, :3].transpose(1, 0) @ T_gt[:3, :3]) - 1.) / 2.
                 rre = np.arccos(np.clip(cos_rre, a_min=-1., a_max=1.)) * 180. / np.pi
 
@@ -558,9 +641,9 @@ def print_model_size(model):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Evaluate MinkLoc model')
     parser.add_argument('--salsa_model', type=str, required=False, default='model_20.pth')
-    parser.add_argument('--dataset_root', type=str, required=False, default='/home/ljc/Dataset/Mulran/Sejong', help='Path to the dataset root')
+    parser.add_argument('--dataset_root', type=str, required=False, default='/home/ljc/Dataset/Mulran/DCC', help='Path to the dataset root')
     parser.add_argument('--dataset_type', type=str, required=False, default='mulran', choices=['mulran', 'southbay', 'kitti', 'alita', 'kitti360'])
-    parser.add_argument('--mulran_sequence', type=str, required=False, default='sejong', choices=['sejong','dcc'])
+    parser.add_argument('--mulran_sequence', type=str, required=False, default='dcc', choices=['sejong','dcc'])
     parser.add_argument('--eval_set', type=str, required=False, default='kitti_00_eval.pickle', help='File name of the evaluation pickle (must be located in dataset_root')
     parser.add_argument('--radius', type=float, nargs='+', default=[5, 20], help='True Positive thresholds in meters')
     parser.add_argument('--n_samples', type=int, default=None, help='Number of elements sampled from the query sequence')
