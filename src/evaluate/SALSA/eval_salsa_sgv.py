@@ -332,8 +332,8 @@ class MetLocEvaluator(Evaluator):
                 print(f"Query point XY: {query_point_xy}")
 
                 # 输出二者之间的距离
-                xyz_dis = np.lianlg.norm(nearest_point_xyz - query_point_xyz)
-                xy_dis = np.lianlg.norm(nearest_point_xy - query_point_xy)
+                xyz_dis = np.linalg.norm(nearest_point_xyz - query_point_xyz)
+                xy_dis = np.linalg.norm(nearest_point_xy - query_point_xy)
                 print(xyz_dis)
                 print(xy_dis)
                 # ----------------------------------------------------------------------------------------------
