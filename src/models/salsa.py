@@ -125,7 +125,8 @@ if __name__=='__main__':
     torch.cuda.manual_seed_all(seed)
     torch.use_deterministic_algorithms(True)
 
-    model = SALSA(2,voxel_sz=0.5,device='cuda')
+    # model = SALSA(2,voxel_sz=0.5,device='cuda')
+    model = SALSA(voxel_sz=0.5)
     # save_path = '/data/raktim/Projects/LPR/Main/src/checkpoints/Ablation/NewSphereMixerVoxel2/model_6.pth'
     # checkpoint = torch.load(save_path)  # ,map_location='cuda:0')
     # model.load_state_dict(checkpoint)
