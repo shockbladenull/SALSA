@@ -23,22 +23,22 @@ from utils.misc_utils import tuple_collate_fn, read_yaml_config
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 os.environ["CUBLAS_WORKSPACE_CONFIG"]=":4096:8"
 
-def print_nb_params(m):
-    model_parameters = filter(lambda p: p.requires_grad, m.parameters())
-    params = sum([np.prod(p.size()) for p in model_parameters])
-    print(f'Trainable parameters: {params/1e6:.3}M')
-    del model_parameters, params
+def print_nb_params(m):  # 定义一个函数，用于打印模型的可训练参数数量
+    model_parameters = filter(lambda p: p.requires_grad, m.parameters())  # 过滤出模型中所有需要梯度更新的参数
+    params = sum([np.prod(p.size()) for p in model_parameters])  # 计算所有可训练参数的总数量
+    print(f'Trainable parameters: {params/1e6:.3}M')  # 打印可训练参数的数量，以百万为单位
+    del model_parameters, params  # 删除变量，释放内存
 
-def print_model_size(model):
-    param_size = 0
-    for param in model.parameters():
-        param_size += param.nelement() * param.element_size()
-    buffer_size = 0
-    for buffer in model.buffers():
-        buffer_size += buffer.nelement() * buffer.element_size()
+def print_model_size(model):  # 定义一个函数，用于打印模型的大小
+    param_size = 0  # 初始化参数大小为 0
+    for param in model.parameters():  # 遍历模型的所有参数
+        param_size += param.nelement() * param.element_size()  # 计算每个参数的大小，并累加到参数大小中
+    buffer_size = 0  # 初始化缓冲区大小为 0
+    for buffer in model.buffers():  # 遍历模型的所有缓冲区
+        buffer_size += buffer.nelement() * buffer.element_size()  # 计算每个缓冲区的大小，并累加到缓冲区大小中
 
-    size_all_mb = (param_size + buffer_size) / 1024**2
-    print('model size: {:.3f}MB'.format(size_all_mb))
+    size_all_mb = (param_size + buffer_size) / 1024**2  # 计算模型的总大小，以 MB 为单位
+    print('model size: {:.3f}MB'.format(size_all_mb))  # 打印模型的大小
 
 
 def main():
