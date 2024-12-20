@@ -211,7 +211,7 @@ class Semantic(nn.Module):
         classes,
         block_reps,
         block_residual,
-        layers,
+        layers, # [32, 64, 128]
         window_size,
         window_size_sphere,
         quant_size,
