@@ -1,7 +1,8 @@
 # Functions and classes operating on a raw Mulran dataset
 
 import sys
-sys.path.append('/home/ljc/SALSA/src/data')  # 或者 '/home/ljc/SALSA/src'
+
+sys.path.append("/home/ljc/SALSA/src/data")  # 或者 '/home/ljc/SALSA/src'
 
 
 import os
@@ -35,34 +36,49 @@ class MulranSequence(Dataset):
     """
     Dataset returns a point cloud from a train or test split from one sequence from a raw Mulran dataset
     """
-    def __init__(self, dataset_root: str, sequence_name: str, split: str, min_displacement: float = 0.2):
-        assert os.path.exists(dataset_root), f'Cannot access dataset root: {dataset_root}'
-        assert split in ['train', 'test', 'all']
+
+    def __init__(
+        self,
+        dataset_root: str,
+        sequence_name: str,
+        split: str,
+        min_displacement: float = 0.2,
+    ):
+        assert os.path.exists(
+            dataset_root
+        ), f"Cannot access dataset root: {dataset_root}"
+        assert split in ["train", "test", "all"]
 
         self.dataset_root = dataset_root
         self.sequence_name = sequence_name
         sequence_path = os.path.join(self.dataset_root, self.sequence_name)
-        assert os.path.exists(sequence_path), f'Cannot access sequence: {sequence_path}'
+        assert os.path.exists(sequence_path), f"Cannot access sequence: {sequence_path}"
         self.split = split
         self.min_displacement = min_displacement
         # Maximum discrepancy between timestamps of LiDAR scan and global pose in seconds
-        self.pose_time_tolerance = 1.
+        self.pose_time_tolerance = 1.0
 
-        self.pose_file = os.path.join(sequence_path, 'global_pose.csv')
-        assert os.path.exists(self.pose_file), f'Cannot access global pose file: {self.pose_file}'
+        self.pose_file = os.path.join(sequence_path, "global_pose.csv")
+        assert os.path.exists(
+            self.pose_file
+        ), f"Cannot access global pose file: {self.pose_file}"
 
-        self.rel_lidar_path = os.path.join(self.sequence_name, 'Ouster')
+        self.rel_lidar_path = os.path.join(self.sequence_name, "Ouster")
         lidar_path = os.path.join(self.dataset_root, self.rel_lidar_path)
-        assert os.path.exists(lidar_path), f'Cannot access lidar scans: {lidar_path}'
+        assert os.path.exists(lidar_path), f"Cannot access lidar scans: {lidar_path}"
         self.pc_loader = MulranPointCloudLoader()
 
-        timestamps, poses = read_lidar_poses(self.pose_file, lidar_path, self.pose_time_tolerance)
+        timestamps, poses = read_lidar_poses(
+            self.pose_file, lidar_path, self.pose_time_tolerance
+        )
         self.timestamps, self.poses = self.filter(timestamps, poses)
-        self.rel_scan_filepath = [os.path.join(self.rel_lidar_path, str(e) + '.bin') for e in self.timestamps]
+        self.rel_scan_filepath = [
+            os.path.join(self.rel_lidar_path, str(e) + ".bin") for e in self.timestamps
+        ]
 
         assert len(self.timestamps) == len(self.poses)
         assert len(self.timestamps) == len(self.rel_scan_filepath)
-        print(f'{len(self.timestamps)} scans in {sequence_name}-{split}')
+        print(f"{len(self.timestamps)} scans in {sequence_name}-{split}")
 
     def __len__(self):
         return len(self.rel_scan_filepath)
@@ -70,8 +86,12 @@ class MulranSequence(Dataset):
     def __getitem__(self, ndx):
         reading_filepath = os.path.join(self.dataset_root, self.rel_scan_filepath[ndx])
         reading = self.pc_loader(reading_filepath)
-        return {'pc': reading, 'pose': self.poses[ndx], 'ts': self.timestamps[ndx],
-                'position': self.poses[ndx][:2, 3]}
+        return {
+            "pc": reading,
+            "pose": self.poses[ndx],
+            "ts": self.timestamps[ndx],
+            "position": self.poses[ndx][:2, 3],
+        }
 
     def filter(self, ts: np.ndarray, poses: np.ndarray):
         # Filter out scans - retain only scans within a given split with minimum displacement
@@ -79,16 +99,16 @@ class MulranSequence(Dataset):
 
         # Retain elements in the given split
         # Only sejong sequence has train/test split
-        if self.split != 'all' and self.sequence_name.lower()[:6] == 'sejong':
-            if self.split == 'train':
+        if self.split != "all" and self.sequence_name.lower()[:6] == "sejong":
+            if self.split == "train":
                 mask = in_train_split(positions)
-            elif self.split == 'test':
+            elif self.split == "test":
                 mask = in_test_split(positions)
 
             ts = ts[mask]
             poses = poses[mask]
             positions = positions[mask]
-            #print(f'Split: {self.split}   Mask len: {len(mask)}   Mask True: {np.sum(mask)}')
+            # print(f'Split: {self.split}   Mask len: {len(mask)}   Mask True: {np.sum(mask)}')
 
         ###### Commnent out the next part when getting sejong split (Bug with the original code, maybe) ################
         # Filter out scans - retain only scans within a given split
@@ -114,10 +134,19 @@ class MulranSequences(Dataset):
     """
     Multiple Mulran sequences indexed as a single dataset. Each element is identified by a unique global index.
     """
-    def __init__(self, dataset_root: str, sequence_names: List[str], split: str, min_displacement: float = 0.2):
+
+    def __init__(
+        self,
+        dataset_root: str,
+        sequence_names: List[str],
+        split: str,
+        min_displacement: float = 0.2,
+    ):
         assert len(sequence_names) > 0
-        assert os.path.exists(dataset_root), f'Cannot access dataset root: {dataset_root}'
-        assert split in ['train', 'test', 'all']
+        assert os.path.exists(
+            dataset_root
+        ), f"Cannot access dataset root: {dataset_root}"
+        assert split in ["train", "test", "all"]
 
         self.dataset_root = dataset_root
         self.sequence_names = sequence_names
@@ -126,7 +155,12 @@ class MulranSequences(Dataset):
 
         sequences = []
         for seq_name in self.sequence_names:
-            ds = MulranSequence(self.dataset_root, seq_name, split=split, min_displacement=min_displacement)
+            ds = MulranSequence(
+                self.dataset_root,
+                seq_name,
+                split=split,
+                min_displacement=min_displacement,
+            )
             sequences.append(ds)
 
         self.dataset = ConcatDataset(sequences)
@@ -138,8 +172,8 @@ class MulranSequences(Dataset):
 
         for cum_size, ds in zip(self.dataset.cumulative_sizes, sequences):
             # Consolidated lidar positions, timestamps and relative filepaths
-            self.poses[cum_size - len(ds): cum_size, :] = ds.poses
-            self.timestamps[cum_size - len(ds): cum_size] = ds.timestamps
+            self.poses[cum_size - len(ds) : cum_size, :] = ds.poses
+            self.timestamps[cum_size - len(ds) : cum_size] = ds.timestamps
             self.rel_scan_filepath.extend(ds.rel_scan_filepath)
 
         assert len(self.timestamps) == len(self.poses)
@@ -168,17 +202,14 @@ class MulranSequences(Dataset):
         return neighbours.astype(np.int32)
 
 
-if __name__ == '__main__':
-    dataset_root = '/home/ljc/Dataset/Mulran/Sejong'
-    sequence_names = ['Sejong01']
+if __name__ == "__main__":
+    dataset_root = "/home/ljc/Dataset/Mulran/Sejong"
+    sequence_names = ["Sejong01"]
 
-    db = MulranSequences(dataset_root, sequence_names, split='train')
-    print(f'Number of scans in the sequence: {len(db)}')
+    db = MulranSequences(dataset_root, sequence_names, split="train")
+    print(f"Number of scans in the sequence: {len(db)}")
     e = db[0]
 
-    res = db.find_neighbours_ndx(e['position'], radius=50)
+    res = db.find_neighbours_ndx(e["position"], radius=50)
     print(res)
-    print('.')
-
-
-
+    print(".")

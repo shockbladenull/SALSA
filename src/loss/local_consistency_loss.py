@@ -3,13 +3,21 @@ import sys
 import numpy as np
 import torch
 import torch.nn.functional as F
+
 # sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from utils.misc_utils import pdist, hashM
 
 
-def point_contrastive_loss(F0, F1, positive_pairs, point_pos_margin=0.1, point_neg_margin=2.0,point_neg_weight=1.0,
-                           num_pos=5192,
-                           num_hn_samples=2048):
+def point_contrastive_loss(
+    F0,
+    F1,
+    positive_pairs,
+    point_pos_margin=0.1,
+    point_neg_margin=2.0,
+    point_neg_weight=1.0,
+    num_pos=5192,
+    num_hn_samples=2048,
+):
     """
     Randomly select 'num-pos' positive pairs.
     Find the hardest-negative (from a random subset of num_hn_samples) for each point in a positive pair.
@@ -35,8 +43,8 @@ def point_contrastive_loss(F0, F1, positive_pairs, point_pos_margin=0.1, point_n
     pos_ind1 = sample_pos_pairs[:, 1]  # .long()
     posF0, posF1 = F0[pos_ind0], F1[pos_ind1]
 
-    D01 = pdist(posF0, subF1, dist_type='L2')
-    D10 = pdist(posF1, subF0, dist_type='L2')
+    D01 = pdist(posF0, subF1, dist_type="L2")
+    D10 = pdist(posF1, subF0, dist_type="L2")
 
     D01min, D01ind = D01.min(1)
     D10min, D10ind = D10.min(1)
@@ -52,9 +60,11 @@ def point_contrastive_loss(F0, F1, positive_pairs, point_pos_margin=0.1, point_n
     neg_keys1 = hashM([D10ind, pos_ind1], hash_seed)
 
     mask0 = torch.from_numpy(
-        np.logical_not(np.isin(neg_keys0, pos_keys, assume_unique=False)))
+        np.logical_not(np.isin(neg_keys0, pos_keys, assume_unique=False))
+    )
     mask1 = torch.from_numpy(
-        np.logical_not(np.isin(neg_keys1, pos_keys, assume_unique=False)))
+        np.logical_not(np.isin(neg_keys1, pos_keys, assume_unique=False))
+    )
     pos_loss = F.relu((posF0 - posF1).pow(2).sum(1) - point_pos_margin)
     neg_loss0 = F.relu(point_neg_margin - D01min[mask0]).pow(2)
     neg_loss1 = F.relu(point_neg_margin - D10min[mask1]).pow(2)

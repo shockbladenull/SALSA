@@ -18,6 +18,7 @@ def match_pair_parallel(src_keypts, tgt_keypts, src_features, tgt_features):
 
     return src_keypts_corr, tgt_keypts_corr
 
+
 # def match_pair_parallel(src_keypts, tgt_keypts, src_features, tgt_features):
 #     # normalize:
 #     src_features = torch.nn.functional.normalize(src_features, p=2.0, dim=1)
@@ -46,6 +47,7 @@ def match_pair_parallel(src_keypts, tgt_keypts, src_features, tgt_features):
 
 #     return src_keypts_corr, tgt_keypts_corr
 
+
 def power_iteration(M, num_iterations=5):
     """
     Calculate the leading eigenvector using power iteration algorithm
@@ -59,7 +61,9 @@ def power_iteration(M, num_iterations=5):
     for i in range(num_iterations):
         # print(i)
         leading_eig = torch.bmm(M, leading_eig)
-        leading_eig = leading_eig / (torch.norm(leading_eig, dim=1, keepdim=True) + 1e-6)
+        leading_eig = leading_eig / (
+            torch.norm(leading_eig, dim=1, keepdim=True) + 1e-6
+        )
         if torch.allclose(leading_eig, leading_eig_last):
             break
         leading_eig_last = leading_eig
@@ -67,7 +71,7 @@ def power_iteration(M, num_iterations=5):
     return leading_eig
 
 
-def cal_spatial_consistency( M, leading_eig):
+def cal_spatial_consistency(M, leading_eig):
     """
     Calculate the spatial consistency based on spectral analysis.
     Input:
@@ -94,15 +98,21 @@ def sgv(src_keypts, tgt_keypts, src_features, tgt_features, d_thresh=5.0):
     # print('src_kp', src_keypts.shape)
     # print('tgt_kp', tgt_keypts.shape)
     # Correspondence Estimation: Nearest Neighbour Matching
-    src_keypts_corr, tgt_keypts_corr = match_pair_parallel(src_keypts, tgt_keypts, src_features, tgt_features)
+    src_keypts_corr, tgt_keypts_corr = match_pair_parallel(
+        src_keypts, tgt_keypts, src_features, tgt_features
+    )
     # print('src',src_keypts_corr.shape)
     # print('tgt',tgt_keypts_corr.shape)
 
     # Spatial Consistency Adjacency Matrix
-    src_dist = torch.norm((src_keypts_corr[:, :, None, :] - src_keypts_corr[:, None, :, :]), dim=-1)
-    target_dist = torch.norm((tgt_keypts_corr[:, :, None, :] - tgt_keypts_corr[:, None, :, :]), dim=-1)
+    src_dist = torch.norm(
+        (src_keypts_corr[:, :, None, :] - src_keypts_corr[:, None, :, :]), dim=-1
+    )
+    target_dist = torch.norm(
+        (tgt_keypts_corr[:, :, None, :] - tgt_keypts_corr[:, None, :, :]), dim=-1
+    )
     cross_dist = torch.abs(src_dist - target_dist)
-    adj_mat = torch.clamp(1.0 - cross_dist ** 2 / d_thresh ** 2, min=0)
+    adj_mat = torch.clamp(1.0 - cross_dist**2 / d_thresh**2, min=0)
     # print(adj_mat)
     # Spatial Consistency Score
     # print(adj_mat.shape)
@@ -113,17 +123,18 @@ def sgv(src_keypts, tgt_keypts, src_features, tgt_features, d_thresh=5.0):
     sc_score_list = np.squeeze(sc_score_list.cpu().detach().numpy())
     return sc_score_list
 
+
 def sgv_fn(query_keypoints, candidate_keypoints, d_thresh=5.0, max_points=15000):
 
     # print(len(query_keypoints),len(candidate_keypoints))
-    kp1 = query_keypoints['keypoints']
-    kp2 = candidate_keypoints['keypoints']
-    f1 = query_keypoints['features']
-    f2 = candidate_keypoints['features']
+    kp1 = query_keypoints["keypoints"]
+    kp2 = candidate_keypoints["keypoints"]
+    f1 = query_keypoints["features"]
+    f2 = candidate_keypoints["features"]
 
     # draw_registration_result(kp1, kp2, np.eye(4))
 
-    min_num_feat = min(len(kp1),len(kp2))
+    min_num_feat = min(len(kp1), len(kp2))
     min_num_feat = min(min_num_feat, max_points)
     kp1 = kp1[:min_num_feat]
     kp2 = kp2[:min_num_feat]
@@ -137,6 +148,4 @@ def sgv_fn(query_keypoints, candidate_keypoints, d_thresh=5.0, max_points=15000)
 
     conf = sgv(src_keypts, tgt_keypts, src_features, tgt_features, d_thresh=d_thresh)
 
-
-
-    return  conf
+    return conf

@@ -4,7 +4,7 @@ import sys
 import numpy as np
 import open3d as o3d
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 from datasets.point_clouds_utils import PointCloudLoader
 
 

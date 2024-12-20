@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 
 
 class FeatureMixerLayer(nn.Module):
@@ -30,27 +30,32 @@ class FeatureMixerLayer(nn.Module):
 
 
 class Mixer(nn.Module):
-    def __init__(self,
-                 in_channels=35000,
-                 out_channels=1000,
-                 in_d=30,
-                 mix_depth=1,
-                 mlp_ratio=1,
-                 out_d=4,
-                 ) -> None:
+    def __init__(
+        self,
+        in_channels=35000,
+        out_channels=1000,
+        in_d=30,
+        mix_depth=1,
+        mlp_ratio=1,
+        out_d=4,
+    ) -> None:
         super().__init__()
 
         self.in_d = in_d
 
-        self.out_d = out_d # row wise projection dimesion
+        self.out_d = out_d  # row wise projection dimesion
 
-        self.mix_depth = mix_depth # L the number of stacked FeatureMixers
-        self.mlp_ratio = mlp_ratio # ratio of the mid projection layer in the mixer block
+        self.mix_depth = mix_depth  # L the number of stacked FeatureMixers
+        self.mlp_ratio = (
+            mlp_ratio  # ratio of the mid projection layer in the mixer block
+        )
 
-        self.mix = nn.Sequential(*[
-            FeatureMixerLayer(in_dim=in_d, mlp_ratio=mlp_ratio)
-            for _ in range(self.mix_depth)
-        ])
+        self.mix = nn.Sequential(
+            *[
+                FeatureMixerLayer(in_dim=in_d, mlp_ratio=mlp_ratio)
+                for _ in range(self.mix_depth)
+            ]
+        )
         self.row_proj = nn.Linear(in_d, out_d)
         self.channel_proj = nn.Linear(in_channels, out_channels)
 
@@ -67,17 +72,18 @@ class Mixer(nn.Module):
 
 # -------------------------------------------------------------------------------
 
+
 def print_nb_params(m):
     model_parameters = filter(lambda p: p.requires_grad, m.parameters())
     params = sum([np.prod(p.size()) for p in model_parameters])
-    print(f'Trainable parameters: {params/1e6:.3}M')
+    print(f"Trainable parameters: {params/1e6:.3}M")
 
 
 def main():
 
-    model = Mixer().to('cuda')
+    model = Mixer().to("cuda")
     print_nb_params(model)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

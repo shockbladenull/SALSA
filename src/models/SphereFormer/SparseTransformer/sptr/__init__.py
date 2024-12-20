@@ -1,8 +1,18 @@
 from .functional import *
 from .utils import *
 
+
 class SparseTrTensor(object):
-    def __init__(self, query_feats, query_indices, spatial_shape, batch_size, key_feats=None, value_feats=None, key_indices=None):
+    def __init__(
+        self,
+        query_feats,
+        query_indices,
+        spatial_shape,
+        batch_size,
+        key_feats=None,
+        value_feats=None,
+        key_indices=None,
+    ):
         """
         Args:
             query_feats: [num_points, num_features] feature tensor
@@ -29,5 +39,6 @@ class SparseTrTensor(object):
         if key in self.indice_dict:
             return self.indice_dict[key]
         return None
+
 
 from .modules import VarLengthMultiheadSA, sparse_self_attention

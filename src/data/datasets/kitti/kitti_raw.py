@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-sys.path.append('../../..')
+sys.path.append("../../..")
 
 from misc.point_clouds import PointCloudLoader
 
@@ -30,30 +30,52 @@ class KittiSequence(Dataset):
     """
     Point cloud from a sequence from a raw Mulran dataset
     """
-    def __init__(self, dataset_root: str, sequence_name: str, pose_time_tolerance: float = 1.,
-                 remove_zero_points: bool = True):
+
+    def __init__(
+        self,
+        dataset_root: str,
+        sequence_name: str,
+        pose_time_tolerance: float = 1.0,
+        remove_zero_points: bool = True,
+    ):
         # pose_time_tolerance: (in seconds) skip point clouds without corresponding pose information (based on
         #                      timestamps difference)
         # remove_zero_points: remove (0,0,0) points
 
-        assert os.path.exists(dataset_root), f'Cannot access dataset root: {dataset_root}'
+        assert os.path.exists(
+            dataset_root
+        ), f"Cannot access dataset root: {dataset_root}"
         self.dataset_root = dataset_root
         self.sequence_name = sequence_name
         # self.sequence_path = os.path.join(self.dataset_root, 'sequences')
         # assert os.path.exists(self.sequence_path), f'Cannot access sequence: {self.sequence_path}'
-        self.rel_lidar_path = os.path.join('sequences', self.sequence_name, 'velodyne')
+        self.rel_lidar_path = os.path.join("sequences", self.sequence_name, "velodyne")
         # lidar_path = os.path.join(self.sequence_path, self.rel_lidar_path)
         # assert os.path.exists(lidar_path), f'Cannot access lidar scans: {lidar_path}'
-        self.pose_file = os.path.join(self.dataset_root, 'poses', self.sequence_name + '.txt')
-        assert os.path.exists(self.pose_file), f'Cannot access sequence pose file: {self.pose_file}'
-        self.times_file = os.path.join(self.dataset_root, 'sequences', self.sequence_name, 'times.txt')
-        assert os.path.exists(self.pose_file), f'Cannot access sequence times file: {self.times_file}'
+        self.pose_file = os.path.join(
+            self.dataset_root, "poses", self.sequence_name + ".txt"
+        )
+        assert os.path.exists(
+            self.pose_file
+        ), f"Cannot access sequence pose file: {self.pose_file}"
+        self.times_file = os.path.join(
+            self.dataset_root, "sequences", self.sequence_name, "times.txt"
+        )
+        assert os.path.exists(
+            self.pose_file
+        ), f"Cannot access sequence times file: {self.times_file}"
         # Maximum discrepancy between timestamps of LiDAR scan and global pose in seconds
         self.pose_time_tolerance = pose_time_tolerance
         self.remove_zero_points = remove_zero_points
 
-        self.rel_lidar_timestamps, self.lidar_poses, filenames = self._read_lidar_poses()
-        self.rel_scan_filepath = [os.path.join(self.rel_lidar_path, '%06d%s' % (e, '.bin')) for e in filenames]
+        (
+            self.rel_lidar_timestamps,
+            self.lidar_poses,
+            filenames,
+        ) = self._read_lidar_poses()
+        self.rel_scan_filepath = [
+            os.path.join(self.rel_lidar_path, "%06d%s" % (e, ".bin")) for e in filenames
+        ]
 
     def __len__(self):
         return len(self.rel_lidar_timestamps)
@@ -64,7 +86,11 @@ class KittiSequence(Dataset):
         if self.remove_zero_points:
             mask = np.all(np.isclose(pc, 0), axis=1)
             pc = pc[~mask]
-        return {'pc': pc, 'pose': self.lidar_poses[ndx], 'ts': self.rel_lidar_timestamps[ndx]}
+        return {
+            "pc": pc,
+            "pose": self.lidar_poses[ndx],
+            "ts": self.rel_lidar_timestamps[ndx],
+        }
 
     def _read_lidar_poses(self):
         fnames = os.listdir(os.path.join(self.dataset_root, self.rel_lidar_path))
@@ -80,13 +106,17 @@ class KittiSequence(Dataset):
 
         for ndx, pose in enumerate(txt_poses):
             # Split by comma and remove whitespaces
-            temp = [e.strip() for e in pose.split(' ')]
-            assert len(temp) == 12, f'Invalid line in global poses file: {temp}'
+            temp = [e.strip() for e in pose.split(" ")]
+            assert len(temp) == 12, f"Invalid line in global poses file: {temp}"
             # poses in kitti ar ein cam0 reference
-            poses[ndx] = np.array([[float(temp[0]), float(temp[1]), float(temp[2]), float(temp[3])],
-                                   [float(temp[4]), float(temp[5]), float(temp[6]), float(temp[7])],
-                                   [float(temp[8]), float(temp[9]), float(temp[10]), float(temp[11])],
-                                   [0., 0., 0., 1.]])
+            poses[ndx] = np.array(
+                [
+                    [float(temp[0]), float(temp[1]), float(temp[2]), float(temp[3])],
+                    [float(temp[4]), float(temp[5]), float(temp[6]), float(temp[7])],
+                    [float(temp[8]), float(temp[9]), float(temp[10]), float(temp[11])],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+            )
         rel_ts = np.genfromtxt(self.times_file)
 
         return rel_ts, poses, filenames

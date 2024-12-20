@@ -22,13 +22,31 @@ def collate_fn(batch):
         new_feat.append(feat[i])
     offset_ = torch.IntTensor(offset[:k]).clone()
     offset_[1:] = offset_[1:] - offset_[:-1]
-    batch_number = torch.cat([torch.tensor([ii]*o) for ii,o in enumerate(offset_)], 0).long()
-    coords,xyz,feat = torch.cat(new_coord[:k]), torch.cat(new_xyz[:k]), torch.cat(new_feat[:k])
-    return coords,xyz,feat,batch_number
+    batch_number = torch.cat(
+        [torch.tensor([ii] * o) for ii, o in enumerate(offset_)], 0
+    ).long()
+    coords, xyz, feat = (
+        torch.cat(new_coord[:k]),
+        torch.cat(new_xyz[:k]),
+        torch.cat(new_feat[:k]),
+    )
+    return coords, xyz, feat, batch_number
 
 
 def tuple_collate_fn(batch):
-    anchor_coords, anchor_xyz, anchor_feats, pos_coords, pos_xyz, pos_feats, neg_coords, neg_xyz, neg_feats, labels, point_pos_pairs = list(zip(*batch))
+    (
+        anchor_coords,
+        anchor_xyz,
+        anchor_feats,
+        pos_coords,
+        pos_xyz,
+        pos_feats,
+        neg_coords,
+        neg_xyz,
+        neg_feats,
+        labels,
+        point_pos_pairs,
+    ) = list(zip(*batch))
     offset, count = [], 0
 
     new_coord, new_xyz, new_feat, new_label, new_point_pos_pairs = [], [], [], [], []
@@ -53,7 +71,6 @@ def tuple_collate_fn(batch):
         new_feat.append(feat[i])
         new_label.append(labels[i][1])
 
-
     coord, xyz, feat = neg_coords, neg_xyz, neg_feats
     for i, item in enumerate(xyz):
 
@@ -64,7 +81,7 @@ def tuple_collate_fn(batch):
         new_feat.append(feat[i])
         new_label.append(labels[i][2])
 
-    if point_pos_pairs!=None:
+    if point_pos_pairs != None:
         for i, item in enumerate(point_pos_pairs):
             # item = np.array(item) + len(new_point_pos_pairs)
             # if i>0:
@@ -72,12 +89,18 @@ def tuple_collate_fn(batch):
             #     item2 = np.array(item)[:,1] + new_coord[i-1].shape[0]
             new_point_pos_pairs.append(item)
 
-
     offset_ = torch.IntTensor(offset).clone()
     offset_[1:] = offset_[1:] - offset_[:-1]
-    batch_number = torch.cat([torch.tensor([ii]*o) for ii,o in enumerate(offset_)], 0).long()
-    coords,xyz,feat,labels = torch.cat(new_coord), torch.cat(new_xyz), torch.cat(new_feat), torch.Tensor(new_label)
-    return coords,xyz,feat,batch_number,labels, new_point_pos_pairs
+    batch_number = torch.cat(
+        [torch.tensor([ii] * o) for ii, o in enumerate(offset_)], 0
+    ).long()
+    coords, xyz, feat, labels = (
+        torch.cat(new_coord),
+        torch.cat(new_xyz),
+        torch.cat(new_feat),
+        torch.Tensor(new_label),
+    )
+    return coords, xyz, feat, batch_number, labels, new_point_pos_pairs
 
 
 def hashM(arr, M):
@@ -95,14 +118,14 @@ def hashM(arr, M):
     return hash_vec
 
 
-def pdist(A, B, dist_type='L2'):
-    if dist_type == 'L2':
+def pdist(A, B, dist_type="L2"):
+    if dist_type == "L2":
         D2 = torch.sum((A.unsqueeze(1) - B.unsqueeze(0)).pow(2), 2)
         return torch.sqrt(D2 + 1e-7)
-    elif dist_type == 'SquareL2':
+    elif dist_type == "SquareL2":
         return torch.sum((A.unsqueeze(1) - B.unsqueeze(0)).pow(2), 2)
     else:
-        raise NotImplementedError('Not implemented')
+        raise NotImplementedError("Not implemented")
 
 
 #####################################################################################
@@ -111,7 +134,7 @@ def pdist(A, B, dist_type='L2'):
 
 
 def load_poses_from_csv(file_name):
-    with open(file_name, newline='') as f:
+    with open(file_name, newline="") as f:
         reader = csv.reader(f)
         data_poses = list(reader)
 
@@ -131,15 +154,15 @@ def load_poses_from_csv(file_name):
 
 
 def load_timestamps_csv(file_name):
-    with open(file_name, newline='') as f:
+    with open(file_name, newline="") as f:
         reader = csv.reader(f)
         data_poses = list(reader)
-    data_poses_ts = np.asarray(
-        [float(t)/1e9 for t in np.asarray(data_poses)[:, 0]])
+    data_poses_ts = np.asarray([float(t) / 1e9 for t in np.asarray(data_poses)[:, 0]])
     return data_poses_ts
 
+
 def read_yaml_config(filename):
-    with open(filename, 'r') as stream:
+    with open(filename, "r") as stream:
         try:
             # Load the YAML file
             config = yaml.safe_load(stream)

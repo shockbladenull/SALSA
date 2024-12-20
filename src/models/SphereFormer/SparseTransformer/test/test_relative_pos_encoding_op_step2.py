@@ -1,19 +1,26 @@
 import torch
 import pointops
-from torch_scatter import scatter_max, scatter_mean, scatter_add, scatter_min, scatter_sum
-import sys 
-sys.path.append("..") 
+from torch_scatter import (
+    scatter_max,
+    scatter_mean,
+    scatter_add,
+    scatter_min,
+    scatter_sum,
+)
+import sys
+
+sys.path.append("..")
 import sptr
 
 torch.manual_seed(2)
 
 # M = 80000
-N = 3500 #10 #5 #10 #3500
-n = 150 #2 #150
+N = 3500  # 10 #5 #10 #3500
+n = 150  # 2 #150
 # k = 5 #7 #65
 hdim = 16
-h = 6 #1 #6
-L = 31 #2 #31
+h = 6  # 1 #6
+L = 31  # 2 #31
 v = torch.rand(N, h, hdim).cuda()
 table = torch.rand(L, h, hdim, 3).cuda()
 
@@ -39,12 +46,17 @@ attn = torch.rand(M, h).cuda()
 # v2p_map, ctg_sort_idx = v2p_map.sort()
 # n, k = p2v_map.shape
 # N = v2p_map.shape[0]
-mask = torch.arange(k)[None].cuda().expand(n, -1) < counts[:, None] #[n, k]
+mask = torch.arange(k)[None].cuda().expand(n, -1) < counts[:, None]  # [n, k]
 to_add = torch.arange(k)[None].cuda().expand(n, -1)[mask]
 v2p_map = v2p_map.long()
-p2v_map = torch.zeros(n, k).long().cuda() #torch.zeros_like(p2v_map)
+p2v_map = torch.zeros(n, k).long().cuda()  # torch.zeros_like(p2v_map)
 p2v_map[mask] = torch.arange(N).cuda()
-ctg_index_1_offsets = torch.cat([torch.zeros(1, dtype=torch.long).cuda(), (counts ** 2).cumsum(-1)], 0)[v2p_map] + to_add
+ctg_index_1_offsets = (
+    torch.cat([torch.zeros(1, dtype=torch.long).cuda(), (counts**2).cumsum(-1)], 0)[
+        v2p_map
+    ]
+    + to_add
+)
 
 print("M: ", M)
 # print("counts[:5]: {}, v2p_map[:5]: {}, p2v_map[:5]: {}".format(counts[:5], v2p_map[:5], p2v_map[:5]))
@@ -55,7 +67,7 @@ print("ctg_index_1_offsets: ", ctg_index_1_offsets)
 
 rel_index = torch.rand(M, 3)
 rel_index[rel_index < 0] = 0
-rel_index = (rel_index*L).long().cuda()
+rel_index = (rel_index * L).long().cuda()
 
 # print("rel_index.min(): {}, rel_index.max(): {}".format(
 #     rel_index.min(), rel_index.max()
@@ -63,9 +75,11 @@ rel_index = (rel_index*L).long().cuda()
 
 print("rel_index: ", rel_index)
 
-index_0_counts = counts[v2p_map.long()] #[N, ]
-index_0_offsets = index_0_counts.cumsum(-1) #[N, ]
-index_0_offsets = torch.cat([torch.zeros(1, dtype=torch.long).cuda(), index_0_offsets], 0) #[N+1]
+index_0_counts = counts[v2p_map.long()]  # [N, ]
+index_0_offsets = index_0_counts.cumsum(-1)  # [N, ]
+index_0_offsets = torch.cat(
+    [torch.zeros(1, dtype=torch.long).cuda(), index_0_offsets], 0
+)  # [N+1]
 n_max = p2v_map.shape[1]
 index_0, index_1 = pointops.precompute_index_pairs(p2v_map, counts, index_0_offsets)
 index_0 = index_0.long()
@@ -101,7 +115,9 @@ v.requires_grad = True
 table.requires_grad = True
 
 
-output = pointops.attention_step2_with_rel_pos_value(attn, v, index_0.int(), index_1.int(), table, rel_index.int())
+output = pointops.attention_step2_with_rel_pos_value(
+    attn, v, index_0.int(), index_1.int(), table, rel_index.int()
+)
 loss = output.mean()
 loss.backward()
 
@@ -123,14 +139,24 @@ table.grad.zero_()
 # print("key.is_contiguous(): ", key.is_contiguous())
 # print("index_0.is_contiguous(): ", index_0.is_contiguous())
 # print("index_1.is_contiguous(): ", index_1.is_contiguous())
-table = table.detach().permute(0,3,1,2).contiguous()
+table = table.detach().permute(0, 3, 1, 2).contiguous()
 table.requires_grad = True
-output_v2 = sptr.attention_step2_with_rel_pos_value(attn, v, index_0.int(), index_0_offsets.int(), n_max, index_1.int(), ctg_index_1_offsets.int(), table, rel_index.int())
+output_v2 = sptr.attention_step2_with_rel_pos_value(
+    attn,
+    v,
+    index_0.int(),
+    index_0_offsets.int(),
+    n_max,
+    index_1.int(),
+    ctg_index_1_offsets.int(),
+    table,
+    rel_index.int(),
+)
 # output_v2 = pointops.attention_step2_with_rel_pos_value_v4(attn, v, index_0_offsets.int(), n_max, index_1.int(), table, rel_index.int())
 loss = output_v2.mean()
 loss.backward()
 
-table_grad2 = table.grad.clone().permute(0,2,3,1).contiguous()
+table_grad2 = table.grad.clone().permute(0, 2, 3, 1).contiguous()
 
 # print("output_v2.shape: {}, output_v2[:5,:10,:5]: {}".format(output_v2.shape, output_v2[:5,:10,:5]))
 # print("v2 attn.grad[:5, :3]: ", attn.grad[:5, :3])
@@ -138,13 +164,12 @@ table_grad2 = table.grad.clone().permute(0,2,3,1).contiguous()
 # print("v2 table.grad[:5, :3, :5, :2]: ", table.grad[:5, :3, :5, :2])
 # # input()
 
-print("((output-output_v2)**2).max(): ", ((output-output_v2)**2).max())
+print("((output-output_v2)**2).max(): ", ((output - output_v2) ** 2).max())
 
-print("((attn_grad-attn.grad)**2).max(): ", ((attn_grad-attn.grad)**2).max())
+print("((attn_grad-attn.grad)**2).max(): ", ((attn_grad - attn.grad) ** 2).max())
 
-print("((v_grad-v.grad)**2).max(): ", ((v_grad-v.grad)**2).max())
+print("((v_grad-v.grad)**2).max(): ", ((v_grad - v.grad) ** 2).max())
 
-print("((table_grad-table_grad2)**2).max(): ", ((table_grad-table_grad2)**2).max())
+print("((table_grad-table_grad2)**2).max(): ", ((table_grad - table_grad2) ** 2).max())
 
 # print("torch.max((attn_flat-attn_flat_v2)**2): ", torch.max((attn_flat-attn_flat_v2)**2))
-

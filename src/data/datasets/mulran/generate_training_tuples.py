@@ -8,7 +8,7 @@ import sys
 import numpy as np
 import tqdm
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 
 from datasets.base_datasets import TrainingTuple
 from datasets.mulran.mulran_raw import MulranSequences
@@ -26,7 +26,7 @@ def load_pc(file_pathname):
     # PC in Mulran is of size [num_points, 4] -> x,y,z,reflectance
     pc = np.reshape(pc, (-1, 4))[:, :3]
 
-    mask = np.all(np.isclose(pc, 0.), axis=1)
+    mask = np.all(np.isclose(pc, 0.0), axis=1)
     pc = pc[~mask]
     mask = pc[:, 0] > -80
     pc = pc[mask]
@@ -43,11 +43,15 @@ def load_pc(file_pathname):
     return pc
 
 
-def generate_training_tuples(ds: MulranSequences, pos_threshold: float = 10, neg_threshold: float = 50):
+def generate_training_tuples(
+    ds: MulranSequences, pos_threshold: float = 10, neg_threshold: float = 50
+):
     # displacement: displacement between consecutive anchors (if None all scans are takes as anchors).
     #               Use some small displacement to ensure there's only one scan if the vehicle does not move
 
-    tuples = {}   # Dictionary of training tuples: tuples[ndx] = (sef ot positives, set of non negatives)
+    tuples = (
+        {}
+    )  # Dictionary of training tuples: tuples[ndx] = (sef ot positives, set of non negatives)
     for anchor_ndx in tqdm.tqdm(range(len(ds))):
         anchor_pos = ds.get_xy()[anchor_ndx]
 
@@ -72,15 +76,23 @@ def generate_training_tuples(ds: MulranSequences, pos_threshold: float = 10, neg
             for positive_ndx in positives:
                 positive_pose = ds.poses[positive_ndx]
                 # Compute initial relative pose
-                m, fitness, inlier_rmse = relative_pose(anchor_pose, positive_pose), 1., 1.
+                m, fitness, inlier_rmse = (
+                    relative_pose(anchor_pose, positive_pose),
+                    1.0,
+                    1.0,
+                )
                 fitness_l.append(fitness)
                 inlier_rmse_l.append(inlier_rmse)
                 positive_poses[positive_ndx] = m
         else:
-            anchor_pc = load_pc(os.path.join(ds.dataset_root, ds.rel_scan_filepath[anchor_ndx]))
+            anchor_pc = load_pc(
+                os.path.join(ds.dataset_root, ds.rel_scan_filepath[anchor_ndx])
+            )
             anchor_pose = ds.poses[anchor_ndx]
             for positive_ndx in positives:
-                positive_pc = load_pc(os.path.join(ds.dataset_root, ds.rel_scan_filepath[positive_ndx]))
+                positive_pc = load_pc(
+                    os.path.join(ds.dataset_root, ds.rel_scan_filepath[positive_ndx])
+                )
                 positive_pose = ds.poses[positive_ndx]
                 # Compute initial relative pose
                 transform = relative_pose(anchor_pose, positive_pose)
@@ -92,46 +104,67 @@ def generate_training_tuples(ds: MulranSequences, pos_threshold: float = 10, neg
                 positive_poses[positive_ndx] = m
 
         # Tuple(id: int, timestamp: int, rel_scan_filepath: str, positives: List[int], non_negatives: List[int])
-        tuples[anchor_ndx] = TrainingTuple(id=anchor_ndx, timestamp=ds.timestamps[anchor_ndx],
-                                           rel_scan_filepath=ds.dataset_root + '/' + ds.rel_scan_filepath[anchor_ndx],
-                                           positives=positives, non_negatives=non_negatives, pose=anchor_pose,
-                                           positives_poses=positive_poses)
+        tuples[anchor_ndx] = TrainingTuple(
+            id=anchor_ndx,
+            timestamp=ds.timestamps[anchor_ndx],
+            rel_scan_filepath=ds.dataset_root + "/" + ds.rel_scan_filepath[anchor_ndx],
+            positives=positives,
+            non_negatives=non_negatives,
+            pose=anchor_pose,
+            positives_poses=positive_poses,
+        )
 
-    print(f'{len(tuples)} training tuples generated')
-    print('ICP pose refimenement stats:')
-    print(f'Fitness - min: {np.min(fitness_l):0.3f}   mean: {np.mean(fitness_l):0.3f}   max: {np.max(fitness_l):0.3f}')
-    print(f'Inlier RMSE - min: {np.min(inlier_rmse_l):0.3f}   mean: {np.mean(inlier_rmse_l):0.3f}   max: {np.max(inlier_rmse_l):0.3f}')
+    print(f"{len(tuples)} training tuples generated")
+    print("ICP pose refimenement stats:")
+    print(
+        f"Fitness - min: {np.min(fitness_l):0.3f}   mean: {np.mean(fitness_l):0.3f}   max: {np.max(fitness_l):0.3f}"
+    )
+    print(
+        f"Inlier RMSE - min: {np.min(inlier_rmse_l):0.3f}   mean: {np.mean(inlier_rmse_l):0.3f}   max: {np.max(inlier_rmse_l):0.3f}"
+    )
 
     return tuples
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Generate training tuples')
-    parser.add_argument('--dataset_root', type=str, default='/data/raktim/Datasets/Mulran/Sejong')
-    parser.add_argument('--pos_threshold', default=2)
-    parser.add_argument('--neg_threshold', default=10)
-    parser.add_argument('--min_displacement', type=float, default=0.2)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate training tuples")
+    parser.add_argument(
+        "--dataset_root", type=str, default="/data/raktim/Datasets/Mulran/Sejong"
+    )
+    parser.add_argument("--pos_threshold", default=2)
+    parser.add_argument("--neg_threshold", default=10)
+    parser.add_argument("--min_displacement", type=float, default=0.2)
     args = parser.parse_args()
 
-    sequences = ['Sejong1', 'Sejong2']
+    sequences = ["Sejong1", "Sejong2"]
     if DEBUG:
-        sequences = ['ParkingLot', 'ParkingLot']
+        sequences = ["ParkingLot", "ParkingLot"]
 
-    print(f'Dataset root: {args.dataset_root}')
-    print(f'Sequences: {sequences}')
-    print(f'Threshold for positive examples: {args.pos_threshold}')
-    print(f'Threshold for negative examples: {args.neg_threshold}')
-    print(f'Minimum displacement between consecutive anchors: {args.min_displacement}')
+    print(f"Dataset root: {args.dataset_root}")
+    print(f"Sequences: {sequences}")
+    print(f"Threshold for positive examples: {args.pos_threshold}")
+    print(f"Threshold for negative examples: {args.neg_threshold}")
+    print(f"Minimum displacement between consecutive anchors: {args.min_displacement}")
 
-    ds = MulranSequences(args.dataset_root, sequences, split='train', min_displacement=args.min_displacement)
+    ds = MulranSequences(
+        args.dataset_root,
+        sequences,
+        split="train",
+        min_displacement=args.min_displacement,
+    )
     train_tuples = generate_training_tuples(ds, args.pos_threshold, args.neg_threshold)
-    pickle_name = f'train_{sequences[0]}_{sequences[1]}_{args.pos_threshold}_{args.neg_threshold}.pickle'
+    pickle_name = f"train_{sequences[0]}_{sequences[1]}_{args.pos_threshold}_{args.neg_threshold}.pickle"
     train_tuples_filepath = os.path.join(args.dataset_root, pickle_name)
-    pickle.dump(train_tuples, open(train_tuples_filepath, 'wb'))
+    pickle.dump(train_tuples, open(train_tuples_filepath, "wb"))
     train_tuples = None
 
-    ds = MulranSequences(args.dataset_root, sequences, split='test', min_displacement=args.min_displacement)
+    ds = MulranSequences(
+        args.dataset_root,
+        sequences,
+        split="test",
+        min_displacement=args.min_displacement,
+    )
     test_tuples = generate_training_tuples(ds, args.pos_threshold, args.neg_threshold)
-    pickle_name = f'val_{sequences[0]}_{sequences[1]}_{args.pos_threshold}_{args.neg_threshold}.pickle'
+    pickle_name = f"val_{sequences[0]}_{sequences[1]}_{args.pos_threshold}_{args.neg_threshold}.pickle"
     test_tuples_filepath = os.path.join(args.dataset_root, pickle_name)
-    pickle.dump(test_tuples, open(test_tuples_filepath, 'wb'))
+    pickle.dump(test_tuples, open(test_tuples_filepath, "wb"))

@@ -22,8 +22,7 @@ def get_matching_indices(source, target, search_voxel_size, K=None):
 
     match_inds = []
     for i, point in enumerate(source_copy.points):
-        [_, idx, _] = pcd_tree.search_radius_vector_3d(
-            point, search_voxel_size)
+        [_, idx, _] = pcd_tree.search_radius_vector_3d(point, search_voxel_size)
         if K is not None:
             idx = idx[:K]
         for j in idx:
