@@ -271,19 +271,19 @@ class MetLocEvaluator(Evaluator):
                 else:
                     raise NotImplementedError('Unknown dataset type')
                 
-                #DEBUG
-                for n in nn_ndx:
-                    cur_pose = self.eval_set.map_set[n].pose
-                    T_ = mulran_relative_pose(query_pose, cur_pose)
-                    T_gtt = mulran_relative_pose(query_pose, nn_pose)
-                    print(n)
-                    print(nn_idx)
-                    delta_pose = cur_pose - nn_pose
-                    print(np.linalg.norm(delta_pose))
-                    print(np.linalg.norm(delta_pose[:3, 3]))
-                    print(np.linalg.norm(T_ - T_gtt))
-                    print(np.linalg.norm(T_ - T_gt))
-                second_pose = self.eval_set.map_set[nn_ndx[1]].pose
+                # ? DEBUG
+                # for n in nn_ndx:
+                #     cur_pose = self.eval_set.map_set[n].pose
+                #     T_ = mulran_relative_pose(query_pose, cur_pose)
+                #     T_gtt = mulran_relative_pose(query_pose, nn_pose)
+                #     print(n)
+                #     print(nn_idx)
+                #     delta_pose = cur_pose - nn_pose
+                #     print(np.linalg.norm(delta_pose))
+                #     print(np.linalg.norm(delta_pose[:3, 3]))
+                #     print(np.linalg.norm(T_ - T_gtt))
+                #     print(np.linalg.norm(T_ - T_gt))
+                # second_pose = self.eval_set.map_set[nn_ndx[1]].pose
 
                 # Refine the pose using ICP
                 if not self.icp_refine:
@@ -318,7 +318,7 @@ class MetLocEvaluator(Evaluator):
                 rte = np.linalg.norm(T_estimated[:3, 3] - T_gt[:3, 3])
 
 
-                # DEBUG
+                # ? DEBUG
                 # 输出距离查询点最近点的真实坐标
                 nearest_point_xyz = nn_pose[:3, 3]
                 nearest_point_xy = nn_pose[:2, 3]
@@ -640,10 +640,10 @@ def print_model_size(model):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Evaluate MinkLoc model')
-    parser.add_argument('--salsa_model', type=str, required=False, default='model_20.pth')
-    parser.add_argument('--dataset_root', type=str, required=False, default='/home/ljc/Dataset/Mulran/DCC', help='Path to the dataset root')
-    parser.add_argument('--dataset_type', type=str, required=False, default='mulran', choices=['mulran', 'southbay', 'kitti', 'alita', 'kitti360'])
-    parser.add_argument('--mulran_sequence', type=str, required=False, default='dcc', choices=['sejong','dcc'])
+    parser.add_argument('--salsa_model', type=str, required=False, default='model_26.pth')
+    parser.add_argument('--dataset_root', type=str, required=False, default='/home/ljc/Dataset/KITTI', help='Path to the dataset root')
+    parser.add_argument('--dataset_type', type=str, required=False, default='kitti', choices=['mulran', 'southbay', 'kitti', 'alita', 'kitti360'])
+    parser.add_argument('--mulran_sequence', type=str, required=False, default='sejong', choices=['sejong','dcc'])
     parser.add_argument('--eval_set', type=str, required=False, default='kitti_00_eval.pickle', help='File name of the evaluation pickle (must be located in dataset_root')
     parser.add_argument('--radius', type=float, nargs='+', default=[5, 20], help='True Positive thresholds in meters')
     parser.add_argument('--n_samples', type=int, default=None, help='Number of elements sampled from the query sequence')
@@ -709,13 +709,13 @@ if __name__ == "__main__":
     checkpoint = torch.load(salsa_model_save_path)  # ,map_location='cuda:0')
     model.spherelpr.load_state_dict(checkpoint)
 
-    salsa_pca_save_path = os.path.join(os.path.dirname(__file__),'../../checkpoints/SALSA/PCA/pca_model.pth')
+    salsa_pca_save_path = os.path.join(os.path.dirname(__file__),'../../checkpoints/SALSA/PCA/pca_model_2.pth')
     model.pca_model.load_state_dict(torch.load(salsa_pca_save_path))
 
     model = model.to(device)
     evaluator = MetLocEvaluator(args.dataset_root, args.dataset_type, args.eval_set, device, radius=args.radius, k=args.n_topk,
                                    n_samples=args.n_samples, voxel_size=args.voxel_size,
-                                   icp_refine=args.icp_refine)
+                                   icp_refine=args.icp_refine, debug=False)
 
     start_time = time()                                   
 
