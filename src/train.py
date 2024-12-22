@@ -161,6 +161,8 @@ def main():
                 model.zero_grad()
                 optimizer.zero_grad()
                 # 获取批次数据并移动到设备上
+                # coord是0.5^3 的体素化坐标，并且减去了最小值进行归一化
+                # xyz和feat完全相同，是data_loader返回的numpy数组
                 coord, xyz, feat, batch_number, labels, point_pos_pairs = batch_data
                 coord, xyz, feat, batch_number, labels = (
                     coord.to(device),

@@ -7,33 +7,51 @@ import yaml
 
 
 def collate_fn(batch):
-    coord, xyz, feat = list(zip(*batch))
-    offset, count = [], 0
+    # 将batch中的点云数据（坐标、3D 点、特征）合并为统一张量，并生成每个点所属样本的标记。
 
-    new_coord, new_xyz, new_feat = [], [], []
-    k = 0
-    for i, item in enumerate(xyz):
+    # batch 是一个列表，包含 128 个三元组 (coord, xyz, feat)
+    # 以coord为例,coord是一个128的tuple
+    # coord[0]是一个(6579,3)的tensor
+    # 其中 coord 是点云的坐标，xyz 是点的 3D 空间位置，feat 是点的特征
+    coord, xyz, feat = list(zip(*batch))  # 将 batch 中的三元组分别解压为 coord、xyz、feat 三个列表
 
-        count += item.shape[0]
-        k += 1
-        offset.append(count)
-        new_coord.append(coord[i])
-        new_xyz.append(xyz[i])
-        new_feat.append(feat[i])
-    offset_ = torch.IntTensor(offset[:k]).clone()
-    offset_[1:] = offset_[1:] - offset_[:-1]
+    offset, count = [], 0  # 初始化偏移量列表 offset 和累积点计数器 count
+
+    new_coord, new_xyz, new_feat = [], [], []  # 用于存储合并前的各样本坐标、3D 点和特征
+    k = 0  # 样本计数器
+    for i, item in enumerate(xyz):  # 遍历每个样本的 xyz 数据（3D 点位置）
+
+        count += item.shape[0]  # 累加当前样本的点数量
+        k += 1  # 样本计数加 1
+        offset.append(count)  # 将当前累积点数记录为偏移量
+        new_coord.append(coord[i])  # 收集当前样本的坐标
+        new_xyz.append(xyz[i])  # 收集当前样本的 3D 点
+        new_feat.append(feat[i])  # 收集当前样本的特征
+
+    # 生成 offset_，表示每个样本的点数量
+    offset_ = torch.IntTensor(offset[:k]).clone()  # 转换为 PyTorch 张量，表示前 k 个样本的偏移量
+    offset_[1:] = offset_[1:] - offset_[:-1]  # 计算每个样本的点数量（相邻偏移量的差值）
+
+    # 生成 batch_number，标记每个点属于哪个样本
     batch_number = torch.cat(
-        [torch.tensor([ii] * o) for ii, o in enumerate(offset_)], 0
-    ).long()
+        [torch.tensor([ii] * o) for ii, o in enumerate(offset_)], 0  # 为每个样本的所有点分配编号 ii
+    ).long()  # 将结果拼接成一个张量，并转换为 long 类型
+
+    # 将所有样本的坐标、3D 点和特征合并为一个张量
     coords, xyz, feat = (
-        torch.cat(new_coord[:k]),
-        torch.cat(new_xyz[:k]),
-        torch.cat(new_feat[:k]),
+        torch.cat(new_coord[:k]),  # 合并前 k 个样本的坐标
+        torch.cat(new_xyz[:k]),  # 合并前 k 个样本的 3D 点
+        torch.cat(new_feat[:k]),  # 合并前 k 个样本的特征
     )
+
+    # 返回合并后的坐标、3D 点、特征张量，以及点对应的样本编号张量
+    # coords.shape = torch.Size([736879, 3])
     return coords, xyz, feat, batch_number
 
 
 def tuple_collate_fn(batch):
+    # 以coord为例,coord是一个12的tuple
+    # coord[0]是一个(5759,3)的tensor
     (
         anchor_coords,
         anchor_xyz,
@@ -47,59 +65,65 @@ def tuple_collate_fn(batch):
         labels,
         point_pos_pairs,
     ) = list(zip(*batch))
+
+    # 初始化偏移量和计数器
     offset, count = [], 0
 
+    # 初始化合并后的点云坐标、3D 点、特征、标签和点对信息列表
     new_coord, new_xyz, new_feat, new_label, new_point_pos_pairs = [], [], [], [], []
 
+    # 处理 Anchor 部分的点云数据
     coord, xyz, feat = anchor_coords, anchor_xyz, anchor_feats
-    for i, item in enumerate(xyz):
+    for i, item in enumerate(xyz):  # 遍历每个样本中的 Anchor 部分
+        count += item.shape[0]  # 累加点的数量
+        offset.append(count)  # 添加当前点的累积偏移量
+        new_coord.append(coord[i])  # 添加 Anchor 坐标
+        new_xyz.append(xyz[i])  # 添加 Anchor 3D 点
+        new_feat.append(feat[i])  # 添加 Anchor 特征
+        new_label.append(labels[i][0])  # 添加 Anchor 的标签
 
-        count += item.shape[0]
-        offset.append(count)
-        new_coord.append(coord[i])
-        new_xyz.append(xyz[i])
-        new_feat.append(feat[i])
-        new_label.append(labels[i][0])
-
+    # 处理 Positive 部分的点云数据
     coord, xyz, feat = pos_coords, pos_xyz, pos_feats
-    for i, item in enumerate(xyz):
+    for i, item in enumerate(xyz):  # 遍历每个样本中的 Positive 部分
+        count += item.shape[0]  # 累加点的数量
+        offset.append(count)  # 添加当前点的累积偏移量
+        new_coord.append(coord[i])  # 添加 Positive 坐标
+        new_xyz.append(xyz[i])  # 添加 Positive 3D 点
+        new_feat.append(feat[i])  # 添加 Positive 特征
+        new_label.append(labels[i][1])  # 添加 Positive 的标签
 
-        count += item.shape[0]
-        offset.append(count)
-        new_coord.append(coord[i])
-        new_xyz.append(xyz[i])
-        new_feat.append(feat[i])
-        new_label.append(labels[i][1])
-
+    # 处理 Negative 部分的点云数据
     coord, xyz, feat = neg_coords, neg_xyz, neg_feats
-    for i, item in enumerate(xyz):
+    for i, item in enumerate(xyz):  # 遍历每个样本中的 Negative 部分
+        count += item.shape[0]  # 累加点的数量
+        offset.append(count)  # 添加当前点的累积偏移量
+        new_coord.append(coord[i])  # 添加 Negative 坐标
+        new_xyz.append(xyz[i])  # 添加 Negative 3D 点
+        new_feat.append(feat[i])  # 添加 Negative 特征
+        new_label.append(labels[i][2])  # 添加 Negative 的标签
 
-        count += item.shape[0]
-        offset.append(count)
-        new_coord.append(coord[i])
-        new_xyz.append(xyz[i])
-        new_feat.append(feat[i])
-        new_label.append(labels[i][2])
-
+    # 如果点对信息存在，处理 point_pos_pairs
     if point_pos_pairs != None:
-        for i, item in enumerate(point_pos_pairs):
-            # item = np.array(item) + len(new_point_pos_pairs)
-            # if i>0:
-            #     item1 = np.array(item)[:,0] + new_coord[i-1].shape[0]
-            #     item2 = np.array(item)[:,1] + new_coord[i-1].shape[0]
-            new_point_pos_pairs.append(item)
+        for i, item in enumerate(point_pos_pairs):  # 遍历每个样本的点对信息
+            new_point_pos_pairs.append(item)  # 将点对信息添加到合并后的列表中
 
+    # 计算偏移量张量，用于后续生成批次编号
     offset_ = torch.IntTensor(offset).clone()
-    offset_[1:] = offset_[1:] - offset_[:-1]
+    offset_[1:] = offset_[1:] - offset_[:-1]  # 计算每个样本中的点数
+    # 创建批次编号张量，表示每个点属于哪一个样本
     batch_number = torch.cat(
         [torch.tensor([ii] * o) for ii, o in enumerate(offset_)], 0
     ).long()
+
+    # 将所有点云数据、特征和标签合并为单一张量
     coords, xyz, feat, labels = (
-        torch.cat(new_coord),
-        torch.cat(new_xyz),
-        torch.cat(new_feat),
-        torch.Tensor(new_label),
+        torch.cat(new_coord),  # 合并所有样本的坐标
+        torch.cat(new_xyz),  # 合并所有样本的 3D 点
+        torch.cat(new_feat),  # 合并所有样本的特征
+        torch.Tensor(new_label),  # 合并所有样本的标签
     )
+
+    # 返回合并后的点云数据和其他辅助信息
     return coords, xyz, feat, batch_number, labels, new_point_pos_pairs
 
 

@@ -89,10 +89,12 @@ class SejongSouthbayLoader(Dataset):  # 定义一个继承自 Dataset 的类 Sej
         self.pcl_transform = pcl_transform  # 设置点云变换函数
         self.mulran_pc_loader = get_pointcloud_loader("mulran")  # 获取 Mulran 点云加载器
         self.southbay_pc_loader = get_pointcloud_loader("southbay")  # 获取 Southbay 点云加载器
+        # pc_loader 返回的是(point_number, 3)的numpy
 
     def data_prepare(
         self, xyzr, voxel_size=np.array([0.1, 0.1, 0.1])
     ):  # 数据准备方法，接受点云数据和体素大小作为参数
+        # 总之就是返回体素化后的坐标、原始坐标和特征数据。
         lidar_pc = copy.deepcopy(xyzr)  # 深拷贝点云数据
         coords = np.round(lidar_pc[:, :3] / voxel_size)  # 计算体素化后的坐标
         coords_min = coords.min(0, keepdims=1)  # 计算坐标的最小值
@@ -213,11 +215,14 @@ class SejongSouthbayTupleLoader(
         arr = np.arange(len(self.all_file_loc))
 
         arr = np.random.permutation(arr)  # 随机打乱索引
+        # TODO 实际上每次permutation都是一样的
 
         # 计算子缓存索引
         self.subcache_indices = np.array_split(arr, self.nCacheSubset)
 
     def update_subcache(self, net, outputdim):  # 更新子缓存方法
+        # 方法的主要功能是更新子缓存数据，生成用于训练的三元组（查询、正样本、负样本）
+        # 总之就是得到查询点的最近正样本和最难负样本
 
         # 重置三元组
         self.triplets = []
@@ -300,6 +305,7 @@ class SejongSouthbayTupleLoader(
 
             # 计算描述符并挖掘难负样本
             print("Mining hard negatives")
+            print("calculate nvecs")
             count = 0
             for i, batch_data in tqdm(enumerate(n_loader), total=len(n_loader)):
                 coord, xyz, feat, batch_number = batch_data
@@ -326,6 +332,7 @@ class SejongSouthbayTupleLoader(
                 gc.collect()
                 torch.cuda.empty_cache()
 
+            print("calculate qvecs")
             count = 0
             for i, batch_data in tqdm(enumerate(q_loader), total=len(q_loader)):
                 coord, xyz, feat, batch_number = batch_data
@@ -352,6 +359,7 @@ class SejongSouthbayTupleLoader(
                 gc.collect()
                 torch.cuda.empty_cache()
 
+            print("calculate pvecs")
             count = 0
             for i, batch_data in tqdm(enumerate(p_loader), total=len(p_loader)):
                 coord, xyz, feat, batch_number = batch_data
