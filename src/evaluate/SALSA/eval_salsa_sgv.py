@@ -43,6 +43,20 @@ os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 print("\n" + " ".join([sys.executable] + sys.argv))
 
 
+class Timer:
+    def __init__(self, name="Operation"):
+        self.name = name
+
+    def __enter__(self):
+        self.start_time = time()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.end_time = time()
+        self.total_time = self.end_time - self.start_time
+        print(f"{self.name} time: {self.total_time:.2f} seconds")
+
+
 class Evaluator:
     def __init__(
         self,
@@ -214,33 +228,21 @@ class MetLocEvaluator(Evaluator):
         else:
             self.only_global = False
 
-        start_time = time()
-        query_embeddings, local_query_embeddings = self.compute_embeddings(
-            self.eval_set.query_set, model
-        )  # same for Nquery
-        end_time = time()
-        total_time = end_time - start_time
-        print(f"Get query_embeddings time: {total_time:.2f} seconds")
+        with Timer("Get query_embeddings"):
+            query_embeddings, local_query_embeddings = self.compute_embeddings(
+                self.eval_set.query_set, model
+            )  # same for Nquery
 
-        start_time = time()
-        map_embeddings, local_map_embeddings = self.compute_embeddings(
-            self.eval_set.map_set, model
-        )  # Nmap x 256 , Nmap x Dict{'keypoints':torch128x3, 'features':torch128x128}
-        end_time = time()
-        total_time = end_time - start_time
-        print(f"Get map_embeddings time: {total_time:.2f} seconds")
+        with Timer("Get map_embeddings"):
+            map_embeddings, local_map_embeddings = self.compute_embeddings(
+                self.eval_set.map_set, model
+            )  # Nmap x 256 , Nmap x Dict{'keypoints':torch128x3, 'features':torch128x128}
 
-        start_time = time()
-        map_positions = self.eval_set.get_map_positions()  # Nmap x 2
-        end_time = time()
-        total_time = end_time - start_time
-        print(f"Get map_positions time: {total_time:.2f} seconds")
+        with Timer("Get map_positions"):
+            map_positions = self.eval_set.get_map_positions()  # Nmap x 2
 
-        start_time = time()
-        query_positions = self.eval_set.get_query_positions()  # Nquery x 2
-        end_time = time()
-        total_time = end_time - start_time
-        print(f"Get query_positions time: {total_time:.2f} seconds")
+        with Timer("Get query_positions"):
+            query_positions = self.eval_set.get_query_positions()  # Nquery x 2
 
         if self.n_samples is None or len(query_embeddings) <= self.n_samples:
             query_indexes = list(range(len(query_embeddings)))
@@ -400,7 +402,6 @@ class MetLocEvaluator(Evaluator):
                     raise NotImplementedError("Unknown dataset type")
 
                 # Refine the pose using ICP
-                start_time = time()
                 if not self.icp_refine:
                     T_refined = T_gt
                 else:
@@ -459,12 +460,7 @@ class MetLocEvaluator(Evaluator):
                         )
                     T_refined, _, _ = icp(query_pc, map_pc, T_gt)
 
-                    end_time = time()
-                    total_time = end_time - start_time
-                    print(f"Get icp time: {total_time:.2f} seconds")
-
                 # Compute repeatability using refined pose
-                start_time = time()
                 kp1 = local_query_embeddings[query_ndx]["keypoints"]
                 kp2 = local_map_embeddings[nn_idx]["keypoints"]
                 metrics[eval_mode]["repeatability"].append(
@@ -477,9 +473,6 @@ class MetLocEvaluator(Evaluator):
                         kp1, kp2, T_refined, threshold=self.repeat_dist_th
                     )
                 )
-                end_time = time()
-                total_time = end_time - start_time
-                print(f"Calculate repetability time: {total_time:.2f} seconds")
 
                 # calc errors
                 rte = np.linalg.norm(T_estimated[:3, 3] - T_gt[:3, 3])
@@ -633,7 +626,6 @@ class MetLocEvaluator(Evaluator):
         }
         global_metrics["mean_t_RR"] = np.mean(np.asarray(global_metrics["t_RR"]))
 
-        start_time = time()
         mean_metrics = {}
         if not self.only_global:
             # Calculate mean values of local descriptor metrics
@@ -661,9 +653,6 @@ class MetLocEvaluator(Evaluator):
                             mean_metrics[eval_mode]["diff_yaw_refined_median"] = (
                                 np.median(m_l)
                             )
-        end_time = time()
-        total_time = end_time - start_time
-        print(f"Calculate mean_data time: {total_time:.2f} seconds")
         return global_metrics, mean_metrics
 
     def ransac_fn(self, query_keypoints, candidate_keypoints):
@@ -1066,20 +1055,9 @@ if __name__ == "__main__":
         icp_refine=args.icp_refine,
     )
 
-    start_time = time()
-
-    global_metrics, metrics = evaluator.evaluate(
-        model, d_thresh=args.d_thresh, only_global=args.only_global
-    )
-
-    end_time = time()
-    total_time = end_time - start_time
-    print(f"Evaluation time: {total_time:.2f} seconds")
-
-    start_time = time()
+    with Timer("Evaluation"):
+        global_metrics, metrics = evaluator.evaluate(
+            model, d_thresh=args.d_thresh, only_global=args.only_global
+        )
 
     evaluator.print_results(global_metrics, metrics)
-
-    end_time = time()
-    total_time = end_time - start_time
-    print(f"Print time: {total_time:.2f} seconds")
