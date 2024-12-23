@@ -2,11 +2,11 @@
 
 import argparse
 import copy
+import math
 import os
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
-import pickle
 import random
 import sys
 from itertools import repeat
@@ -17,13 +17,10 @@ import numpy as np
 import open3d as o3d
 import torch
 import tqdm
-from sgv_utils import *
+from sgv_utils import *  # noqa: F403
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
-import data.datasets.southbay.pypcd as pypcd
-from data.dataset_utils import voxelize
-from models.pca_model import CombinedModel, PCAModel
-from models.salsa import SALSA
+from models.pca_model import CombinedModel
 from data.datasets.base_datasets import (
     EvaluationSet,
     EvaluationTuple,
@@ -217,16 +214,33 @@ class MetLocEvaluator(Evaluator):
         else:
             self.only_global = False
 
+        start_time = time()
         query_embeddings, local_query_embeddings = self.compute_embeddings(
             self.eval_set.query_set, model
         )  # same for Nquery
+        end_time = time()
+        total_time = end_time - start_time
+        print(f"Get query_embeddings time: {total_time:.2f} seconds")
 
+        start_time = time()
         map_embeddings, local_map_embeddings = self.compute_embeddings(
             self.eval_set.map_set, model
         )  # Nmap x 256 , Nmap x Dict{'keypoints':torch128x3, 'features':torch128x128}
+        end_time = time()
+        total_time = end_time - start_time
+        print(f"Get map_embeddings time: {total_time:.2f} seconds")
 
+        start_time = time()
         map_positions = self.eval_set.get_map_positions()  # Nmap x 2
+        end_time = time()
+        total_time = end_time - start_time
+        print(f"Get map_positions time: {total_time:.2f} seconds")
+
+        start_time = time()
         query_positions = self.eval_set.get_query_positions()  # Nquery x 2
+        end_time = time()
+        total_time = end_time - start_time
+        print(f"Get query_positions time: {total_time:.2f} seconds")
 
         if self.n_samples is None or len(query_embeddings) <= self.n_samples:
             query_indexes = list(range(len(query_embeddings)))
@@ -252,6 +266,14 @@ class MetLocEvaluator(Evaluator):
                     "repeatability_refined": [],
                     "failure_inliers_refined": [],
                     "t_ransac": [],
+                    "distance_xyz": [],
+                    "diff_yaw": [],
+                    "distance_xyz_refined": [],
+                    "diff_yaw_refined": [],
+                    "new_suc_1_2": [],
+                    "new_suc_0.5_1": [],
+                    "new_suc_1_2_refined": [],
+                    "new_suc_0.5_1_refined": [],
                 }
                 for eval_mode in ["Initial", "Re-Ranked"]
             }
@@ -378,6 +400,7 @@ class MetLocEvaluator(Evaluator):
                     raise NotImplementedError("Unknown dataset type")
 
                 # Refine the pose using ICP
+                start_time = time()
                 if not self.icp_refine:
                     T_refined = T_gt
                 else:
@@ -436,7 +459,12 @@ class MetLocEvaluator(Evaluator):
                         )
                     T_refined, _, _ = icp(query_pc, map_pc, T_gt)
 
+                    end_time = time()
+                    total_time = end_time - start_time
+                    print(f"Get icp time: {total_time:.2f} seconds")
+
                 # Compute repeatability using refined pose
+                start_time = time()
                 kp1 = local_query_embeddings[query_ndx]["keypoints"]
                 kp2 = local_map_embeddings[nn_idx]["keypoints"]
                 metrics[eval_mode]["repeatability"].append(
@@ -449,13 +477,40 @@ class MetLocEvaluator(Evaluator):
                         kp1, kp2, T_refined, threshold=self.repeat_dist_th
                     )
                 )
+                end_time = time()
+                total_time = end_time - start_time
+                print(f"Calculate repetability time: {total_time:.2f} seconds")
 
                 # calc errors
                 rte = np.linalg.norm(T_estimated[:3, 3] - T_gt[:3, 3])
+
+                # ? DEBUG
+                # 最近点 @ 估计矩阵的逆（已经逆过了）
+                # 得到一个新的位置
+                # 新的位置减去查询点得到误差
+                # ----------------------------------------------------------------------------------------------
+                transformed_pose = nn_pose @ T_estimated
+                distance_xyz = np.linalg.norm(transformed_pose[:3, 3] - nn_pose[:3, 3])
+                # ----------------------------------------------------------------------------------------------
+
                 cos_rre = (
                     np.trace(T_estimated[:3, :3].transpose(1, 0) @ T_gt[:3, :3]) - 1.0
                 ) / 2.0
                 rre = np.arccos(np.clip(cos_rre, a_min=-1.0, a_max=1.0)) * 180.0 / np.pi
+
+                # ? DEBUG
+                # ----------------------------------------------------------------------------------------------
+
+                yaw_estimated = math.atan2(-T_estimated[0, 1], T_estimated[0, 0])
+                yaw_estimated = yaw_estimated % (2 * np.pi)
+
+                yaw_gt = math.atan2(-T_gt[0, 1], T_gt[0, 0])
+                yaw_gt = yaw_gt % (2 * np.pi)
+
+                diff_yaw = abs(yaw_estimated - yaw_gt)
+                diff_yaw = diff_yaw % (2 * np.pi)
+                diff_yaw = (diff_yaw * 180) / np.pi
+                # ----------------------------------------------------------------------------------------------
 
                 metrics[eval_mode]["t_ransac"].append(t_ransac)  # RANSAC time
 
@@ -468,6 +523,20 @@ class MetLocEvaluator(Evaluator):
                     metrics[eval_mode]["success_inliers"].append(inliers)
                     metrics[eval_mode]["rte"].append(rte)
                     metrics[eval_mode]["rre"].append(rre)
+                    metrics[eval_mode]["distance_xyz"].append(distance_xyz)
+                    metrics[eval_mode]["diff_yaw"].append(diff_yaw)
+
+                # 1 meters and 2 degrees threshold for successful registration
+                if rte > 1.0 or rre > 2.0:
+                    metrics[eval_mode]["new_suc_1_2"].append(0.0)
+                else:
+                    metrics[eval_mode]["new_suc_1_2"].append(1.0)
+
+                # 0.5 meters and 1 degrees threshold for successful registration
+                if rte > 0.5 or rre > 1.0:
+                    metrics[eval_mode]["new_suc_1_2"].append(0.0)
+                else:
+                    metrics[eval_mode]["new_suc_1_2"].append(1.0)
 
                 if self.icp_refine:
                     # calc errors using refined pose
@@ -484,6 +553,43 @@ class MetLocEvaluator(Evaluator):
                         / np.pi
                     )
 
+                    # ? DEBUG
+                    # 最近点 @ 估计矩阵的逆（已经逆过了）
+                    # 得到一个新的位置
+                    # 新的位置减去查询点得到误差
+                    # ----------------------------------------------------------------------------------------------
+                    transformed_pose = nn_pose @ T_estimated
+                    distance_xyz_refined = np.linalg.norm(
+                        transformed_pose[:3, 3] - nn_pose[:3, 3]
+                    )
+                    # ----------------------------------------------------------------------------------------------
+
+                    cos_rre_refined = (
+                        np.trace(
+                            T_estimated[:3, :3].transpose(1, 0) @ T_refined[:3, :3]
+                        )
+                        - 1.0
+                    ) / 2.0
+                    rre_refined = (
+                        np.arccos(np.clip(cos_rre_refined, a_min=-1.0, a_max=1.0))
+                        * 180.0
+                        / np.pi
+                    )
+
+                    # ? DEBUG
+                    # ----------------------------------------------------------------------------------------------
+
+                    yaw_estimated = math.atan2(-T_estimated[0, 1], T_estimated[0, 0])
+                    yaw_estimated = yaw_estimated % (2 * np.pi)
+
+                    yaw_gt = math.atan2(-T_gt[0, 1], T_gt[0, 0])
+                    yaw_gt = yaw_gt % (2 * np.pi)
+
+                    diff_yaw = abs(yaw_estimated - yaw_gt)
+                    diff_yaw = diff_yaw % (2 * np.pi)
+                    diff_yaw = (diff_yaw * 180) / np.pi
+                    # ----------------------------------------------------------------------------------------------
+
                     # 2 meters and 5 degrees threshold for successful registration
                     if rte_refined > 2.0 or rre_refined > 5.0:
                         metrics[eval_mode]["success_refined"].append(0.0)
@@ -493,6 +599,22 @@ class MetLocEvaluator(Evaluator):
                         metrics[eval_mode]["success_inliers_refined"].append(inliers)
                         metrics[eval_mode]["rte_refined"].append(rte_refined)
                         metrics[eval_mode]["rre_refined"].append(rre_refined)
+                        metrics[eval_mode]["distance_xyz_refined"].append(
+                            distance_xyz_refined
+                        )
+                        metrics[eval_mode]["diff_yaw_refined"].append(diff_yaw)
+
+                    # 1 meters and 2 degrees threshold for successful registration
+                    if rte_refined > 1.0 or rre_refined > 2.0:
+                        metrics[eval_mode]["new_suc_1_2_refined"].append(0.0)
+                    else:
+                        metrics[eval_mode]["new_suc_1_2_refined"].append(1.0)
+
+                    # 0.5 meters and 1 degrees threshold for successful registration
+                    if rte > 0.5 or rre > 1.0:
+                        metrics[eval_mode]["new_suc_1_2_refined"].append(0.0)
+                    else:
+                        metrics[eval_mode]["new_suc_1_2_refined"].append(1.0)
 
         # Calculate mean metrics
         global_metrics["recall"] = {
@@ -511,6 +633,7 @@ class MetLocEvaluator(Evaluator):
         }
         global_metrics["mean_t_RR"] = np.mean(np.asarray(global_metrics["t_RR"]))
 
+        start_time = time()
         mean_metrics = {}
         if not self.only_global:
             # Calculate mean values of local descriptor metrics
@@ -524,7 +647,23 @@ class MetLocEvaluator(Evaluator):
                         if metric == "t_ransac":
                             mean_metrics[eval_mode]["t_ransac_sd"] = np.std(m_l)
                         mean_metrics[eval_mode][metric] = np.mean(m_l)
-
+                        if metric == "distance_xyz":
+                            mean_metrics[eval_mode]["distance_xyz_median"] = np.median(
+                                m_l
+                            )
+                        if metric == "distance_xyz_refined":
+                            mean_metrics[eval_mode]["distance_xyz_refined_median"] = (
+                                np.median(m_l)
+                            )
+                        if metric == "diff_yaw":
+                            mean_metrics[eval_mode]["diff_yaw_median"] = np.median(m_l)
+                        if metric == "diff_yaw_refined":
+                            mean_metrics[eval_mode]["diff_yaw_refined_median"] = (
+                                np.median(m_l)
+                            )
+        end_time = time()
+        total_time = end_time - start_time
+        print(f"Calculate mean_data time: {total_time:.2f} seconds")
         return global_metrics, mean_metrics
 
     def ransac_fn(self, query_keypoints, candidate_keypoints):
@@ -660,6 +799,17 @@ class MetLocEvaluator(Evaluator):
                 print(f"{s}: {metrics[eval_mode][s]:0.3f}")
             print("")
 
+        print("-------------------------------------")
+        mean_dist_xyz = np.mean(metrics[eval_mode]["distance_xyz"])
+        median_dist_xyz = np.median(metrics[eval_mode]["distance_xyz"])
+        print(f"mean_dist_xyz: {mean_dist_xyz}")
+        print(f"median_dist_xyz: {median_dist_xyz}")
+        print("-------------------------------------")
+        mean_yaw = np.mean(metrics[eval_mode]["diff_yaw"])
+        median_yaw = np.median(metrics[eval_mode]["diff_yaw"])
+        print(f"mean_yaw: {mean_yaw:0.3f}")
+        print(f"median_yaw: {median_yaw:0.3f}")
+
 
 def get_ransac_result(feat1, feat2, kp1, kp2, ransac_dist_th=0.5, ransac_max_it=10000):
     feature_dim = feat1.shape[1]
@@ -779,7 +929,7 @@ def print_model_size(model):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate MinkLoc model")
     parser.add_argument(
-        "--salsa_model", type=str, required=False, default="model_20.pth"
+        "--salsa_model", type=str, required=False, default="model_26.pth"
     )
     parser.add_argument(
         "--dataset_root",
@@ -899,7 +1049,7 @@ if __name__ == "__main__":
     model.spherelpr.load_state_dict(checkpoint)
 
     salsa_pca_save_path = os.path.join(
-        os.path.dirname(__file__), "../../checkpoints/SALSA/PCA/pca_model.pth"
+        os.path.dirname(__file__), "../../checkpoints/SALSA/PCA/pca_model_2.pth"
     )
     model.pca_model.load_state_dict(torch.load(salsa_pca_save_path))
 
@@ -932,4 +1082,4 @@ if __name__ == "__main__":
 
     end_time = time()
     total_time = end_time - start_time
-    print(f"Evaluation time: {total_time:.2f} seconds")
+    print(f"Print time: {total_time:.2f} seconds")
