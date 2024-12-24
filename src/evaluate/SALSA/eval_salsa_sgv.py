@@ -508,7 +508,7 @@ class MetLocEvaluator(Evaluator):
                 metrics[eval_mode]["t_ransac"].append(t_ransac)  # RANSAC time
 
                 # 2 meters and 5 degrees threshold for successful registration
-                if rte > 2.0 or rre > 5.0:
+                if distance_xyz > 2.0 or diff_yaw > 5.0:
                     metrics[eval_mode]["success"].append(0.0)
                     metrics[eval_mode]["failure_inliers"].append(inliers)
                 else:
@@ -520,13 +520,13 @@ class MetLocEvaluator(Evaluator):
                     metrics[eval_mode]["diff_yaw"].append(diff_yaw)
 
                 # 1 meters and 2 degrees threshold for successful registration
-                if rte > 1.0 or rre > 2.0:
+                if distance_xyz > 1.0 or diff_yaw > 2.0:
                     metrics[eval_mode]["new_suc_1_2"].append(0.0)
                 else:
                     metrics[eval_mode]["new_suc_1_2"].append(1.0)
 
                 # 0.5 meters and 1 degrees threshold for successful registration
-                if rte > 0.5 or rre > 1.0:
+                if distance_xyz > 0.5 or diff_yaw > 1.0:
                     metrics[eval_mode]["new_suc_1_2"].append(0.0)
                 else:
                     metrics[eval_mode]["new_suc_1_2"].append(1.0)
@@ -575,16 +575,16 @@ class MetLocEvaluator(Evaluator):
                     yaw_estimated = math.atan2(-T_estimated[0, 1], T_estimated[0, 0])
                     yaw_estimated = yaw_estimated % (2 * np.pi)
 
-                    yaw_gt = math.atan2(-T_gt[0, 1], T_gt[0, 0])
-                    yaw_gt = yaw_gt % (2 * np.pi)
+                    yaw_gt_refined = math.atan2(-T_refined[0, 1], T_refined[0, 0])
+                    yaw_gt_refined = yaw_gt_refined % (2 * np.pi)
 
-                    diff_yaw = abs(yaw_estimated - yaw_gt)
-                    diff_yaw = diff_yaw % (2 * np.pi)
-                    diff_yaw = (diff_yaw * 180) / np.pi
+                    diff_yaw_refined = abs(yaw_estimated - yaw_gt_refined)
+                    diff_yaw_refined = diff_yaw_refined % (2 * np.pi)
+                    diff_yaw_refined = (diff_yaw_refined * 180) / np.pi
                     # ----------------------------------------------------------------------------------------------
 
                     # 2 meters and 5 degrees threshold for successful registration
-                    if rte_refined > 2.0 or rre_refined > 5.0:
+                    if distance_xyz_refined > 2.0 or diff_yaw_refined > 5.0:
                         metrics[eval_mode]["success_refined"].append(0.0)
                         metrics[eval_mode]["failure_inliers_refined"].append(inliers)
                     else:
@@ -598,13 +598,13 @@ class MetLocEvaluator(Evaluator):
                         metrics[eval_mode]["diff_yaw_refined"].append(diff_yaw)
 
                     # 1 meters and 2 degrees threshold for successful registration
-                    if rte_refined > 1.0 or rre_refined > 2.0:
+                    if distance_xyz_refined > 1.0 or diff_yaw_refined > 2.0:
                         metrics[eval_mode]["new_suc_1_2_refined"].append(0.0)
                     else:
                         metrics[eval_mode]["new_suc_1_2_refined"].append(1.0)
 
                     # 0.5 meters and 1 degrees threshold for successful registration
-                    if rte > 0.5 or rre > 1.0:
+                    if distance_xyz_refined > 0.5 or diff_yaw_refined > 1.0:
                         metrics[eval_mode]["new_suc_1_2_refined"].append(0.0)
                     else:
                         metrics[eval_mode]["new_suc_1_2_refined"].append(1.0)
