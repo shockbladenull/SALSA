@@ -276,6 +276,14 @@ class MetLocEvaluator(Evaluator):
                     "new_suc_0.5_1": [],
                     "new_suc_1_2_refined": [],
                     "new_suc_0.5_1_refined": [],
+                    "all_rte": [],
+                    "all_rre": [],
+                    "all_distance_xyz": [],
+                    "all_diff_yaw": [],
+                    "all_rte_refined": [],
+                    "all_rre_refined": [],
+                    "all_distance_xyz_refined": [],
+                    "all_diff_yaw_refined": [],
                 }
                 for eval_mode in ["Initial", "Re-Ranked"]
             }
@@ -507,6 +515,11 @@ class MetLocEvaluator(Evaluator):
 
                 metrics[eval_mode]["t_ransac"].append(t_ransac)  # RANSAC time
 
+                metrics[eval_mode]["all_rte"].append(rte)
+                metrics[eval_mode]["all_rre"].append(rre)
+                metrics[eval_mode]["all_distance_xyz"].append(distance_xyz)
+                metrics[eval_mode]["all_diff_yaw"].append(diff_yaw)
+
                 # 2 meters and 5 degrees threshold for successful registration
                 if distance_xyz > 2.0 or diff_yaw > 5.0:
                     metrics[eval_mode]["success"].append(0.0)
@@ -583,6 +596,13 @@ class MetLocEvaluator(Evaluator):
                     diff_yaw_refined = (diff_yaw_refined * 180) / np.pi
                     # ----------------------------------------------------------------------------------------------
 
+                    metrics[eval_mode]["all_rte_refined"].append(rte_refined)
+                    metrics[eval_mode]["all_rre_refined"].append(rre_refined)
+                    metrics[eval_mode]["all_distance_xyz_refined"].append(
+                        distance_xyz_refined
+                    )
+                    metrics[eval_mode]["all_diff_yaw_refined"].append(diff_yaw)
+
                     # 2 meters and 5 degrees threshold for successful registration
                     if distance_xyz_refined > 2.0 or diff_yaw_refined > 5.0:
                         metrics[eval_mode]["success_refined"].append(0.0)
@@ -651,6 +671,34 @@ class MetLocEvaluator(Evaluator):
                             mean_metrics[eval_mode]["diff_yaw_median"] = np.median(m_l)
                         if metric == "diff_yaw_refined":
                             mean_metrics[eval_mode]["diff_yaw_refined_median"] = (
+                                np.median(m_l)
+                            )
+                        if metric == "all_rte":
+                            mean_metrics[eval_mode]["all_rte_median"] = np.median(m_l)
+                        if metric == "all_rre":
+                            mean_metrics[eval_mode]["all_rre_median"] = np.median(m_l)
+                        if metric == "all_distance_xyz":
+                            mean_metrics[eval_mode]["distance_xyz_median"] = np.median(
+                                m_l
+                            )
+                        if metric == "all_diff_yaw":
+                            mean_metrics[eval_mode]["all_diff_yaw_median"] = np.median(
+                                m_l
+                            )
+                        if metric == "all_rte_refined":
+                            mean_metrics[eval_mode]["all_rte_refined_median"] = (
+                                np.median(m_l)
+                            )
+                        if metric == "all_rre_refined":
+                            mean_metrics[eval_mode]["all_rre_refined_median"] = (
+                                np.median(m_l)
+                            )
+                        if metric == "all_distance_xyz_refined":
+                            mean_metrics[eval_mode]["all_distance_xyz_refined_median"] = (
+                                np.median(m_l)
+                            )
+                        if metric == "all_diff_yaw_refined":
+                            mean_metrics[eval_mode]["all_diff_yaw_refined_median"] = (
                                 np.median(m_l)
                             )
         return global_metrics, mean_metrics
@@ -789,15 +837,6 @@ class MetLocEvaluator(Evaluator):
             print("")
 
         print("-------------------------------------")
-        mean_dist_xyz = np.mean(metrics[eval_mode]["distance_xyz"])
-        median_dist_xyz = np.median(metrics[eval_mode]["distance_xyz"])
-        print(f"mean_dist_xyz: {mean_dist_xyz}")
-        print(f"median_dist_xyz: {median_dist_xyz}")
-        print("-------------------------------------")
-        mean_yaw = np.mean(metrics[eval_mode]["diff_yaw"])
-        median_yaw = np.median(metrics[eval_mode]["diff_yaw"])
-        print(f"mean_yaw: {mean_yaw:0.3f}")
-        print(f"median_yaw: {median_yaw:0.3f}")
 
 
 def get_ransac_result(feat1, feat2, kp1, kp2, ransac_dist_th=0.5, ransac_max_it=10000):
@@ -924,7 +963,7 @@ if __name__ == "__main__":
         "--dataset_root",
         type=str,
         required=False,
-        default="/home/ljc/Dataset/Mulran/Sejong",
+        default="/home/ljc/Dataset/Mulran/DCC",
         help="Path to the dataset root",
     )
     parser.add_argument(
@@ -938,7 +977,7 @@ if __name__ == "__main__":
         "--mulran_sequence",
         type=str,
         required=False,
-        default="sejong",
+        default="dcc",
         choices=["sejong", "dcc"],
     )
     parser.add_argument(
