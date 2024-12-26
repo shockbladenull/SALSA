@@ -3,6 +3,7 @@
 import argparse
 import copy
 import math
+import csv
 import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
@@ -914,6 +915,18 @@ def print_model_size(model):
     print("model size: {:.3f}MB".format(size_all_mb))
 
 
+def save_metrics_to_csv(metrics, base_filename):
+    for eval_mode, data in metrics.items():
+        filename = f"{base_filename}_{eval_mode}.csv"
+        with open(filename, mode="w", newline="") as file:
+            writer = csv.writer(file)
+            # Write the header
+            writer.writerow(["Metric", "Values"])
+            # Write the data
+            for metric, values in data.items():
+                writer.writerow([metric, values])
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate MinkLoc model")
     parser.add_argument(
@@ -1060,3 +1073,5 @@ if __name__ == "__main__":
         )
 
     evaluator.print_results(global_metrics, metrics)
+
+    save_metrics_to_csv(metrics, "metrics")
