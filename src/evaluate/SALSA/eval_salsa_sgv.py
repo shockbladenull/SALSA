@@ -656,51 +656,10 @@ class MetLocEvaluator(Evaluator):
                     if len(m_l) == 0:
                         mean_metrics[eval_mode][metric] = 0.0
                     else:
+                        mean_metrics[eval_mode][metric] = np.mean(m_l)
+                        mean_metrics[eval_mode][f"{metric}_median"] = np.median(m_l)
                         if metric == "t_ransac":
                             mean_metrics[eval_mode]["t_ransac_sd"] = np.std(m_l)
-                        mean_metrics[eval_mode][metric] = np.mean(m_l)
-                        if metric == "distance_xyz":
-                            mean_metrics[eval_mode]["distance_xyz_median"] = np.median(
-                                m_l
-                            )
-                        if metric == "distance_xyz_refined":
-                            mean_metrics[eval_mode]["distance_xyz_refined_median"] = (
-                                np.median(m_l)
-                            )
-                        if metric == "diff_yaw":
-                            mean_metrics[eval_mode]["diff_yaw_median"] = np.median(m_l)
-                        if metric == "diff_yaw_refined":
-                            mean_metrics[eval_mode]["diff_yaw_refined_median"] = (
-                                np.median(m_l)
-                            )
-                        if metric == "all_rte":
-                            mean_metrics[eval_mode]["all_rte_median"] = np.median(m_l)
-                        if metric == "all_rre":
-                            mean_metrics[eval_mode]["all_rre_median"] = np.median(m_l)
-                        if metric == "all_distance_xyz":
-                            mean_metrics[eval_mode]["distance_xyz_median"] = np.median(
-                                m_l
-                            )
-                        if metric == "all_diff_yaw":
-                            mean_metrics[eval_mode]["all_diff_yaw_median"] = np.median(
-                                m_l
-                            )
-                        if metric == "all_rte_refined":
-                            mean_metrics[eval_mode]["all_rte_refined_median"] = (
-                                np.median(m_l)
-                            )
-                        if metric == "all_rre_refined":
-                            mean_metrics[eval_mode]["all_rre_refined_median"] = (
-                                np.median(m_l)
-                            )
-                        if metric == "all_distance_xyz_refined":
-                            mean_metrics[eval_mode]["all_distance_xyz_refined_median"] = (
-                                np.median(m_l)
-                            )
-                        if metric == "all_diff_yaw_refined":
-                            mean_metrics[eval_mode]["all_diff_yaw_refined_median"] = (
-                                np.median(m_l)
-                            )
         return global_metrics, mean_metrics
 
     def ransac_fn(self, query_keypoints, candidate_keypoints):
