@@ -646,21 +646,7 @@ class MetLocEvaluator(Evaluator):
         }
         global_metrics["mean_t_RR"] = np.mean(np.asarray(global_metrics["t_RR"]))
 
-        mean_metrics = {}
-        if not self.only_global:
-            # Calculate mean values of local descriptor metrics
-            for eval_mode in ["Initial", "Re-Ranked"]:
-                mean_metrics[eval_mode] = {}
-                for metric in metrics[eval_mode]:
-                    m_l = metrics[eval_mode][metric]
-                    if len(m_l) == 0:
-                        mean_metrics[eval_mode][metric] = 0.0
-                    else:
-                        mean_metrics[eval_mode][metric] = np.mean(m_l)
-                        mean_metrics[eval_mode][f"{metric}_median"] = np.median(m_l)
-                        if metric == "t_ransac":
-                            mean_metrics[eval_mode]["t_ransac_sd"] = np.std(m_l)
-        return global_metrics, mean_metrics
+        return global_metrics, metrics
 
     def ransac_fn(self, query_keypoints, candidate_keypoints):
         """
@@ -786,13 +772,28 @@ class MetLocEvaluator(Evaluator):
             print("MRR: {:0.1f}".format(global_metrics["MRR_rr"][r_rr] * 100.0))
         print("Re-Ranking Time: {:0.3f}".format(1000.0 * global_metrics["mean_t_RR"]))
 
+        mean_metrics = {}
+        if not self.only_global:
+            # Calculate mean values of local descriptor metrics
+            for eval_mode in ["Initial", "Re-Ranked"]:
+                mean_metrics[eval_mode] = {}
+                for metric in metrics[eval_mode]:
+                    m_l = metrics[eval_mode][metric]
+                    if len(m_l) == 0:
+                        mean_metrics[eval_mode][metric] = 0.0
+                    else:
+                        mean_metrics[eval_mode][metric] = np.mean(m_l)
+                        mean_metrics[eval_mode][f"{metric}_median"] = np.median(m_l)
+                        if metric == "t_ransac":
+                            mean_metrics[eval_mode]["t_ransac_sd"] = np.std(m_l)
+
         print("\n", "Metric Localization:")
         for eval_mode in ["Initial", "Re-Ranked"]:
-            if eval_mode not in metrics:
+            if eval_mode not in mean_metrics:
                 break
             print("#keypoints: {}".format(eval_mode))
-            for s in metrics[eval_mode]:
-                print(f"{s}: {metrics[eval_mode][s]:0.3f}")
+            for s in mean_metrics[eval_mode]:
+                print(f"{s}: {mean_metrics[eval_mode][s]:0.3f}")
             print("")
 
         print("-------------------------------------")
