@@ -541,9 +541,9 @@ class MetLocEvaluator(Evaluator):
 
                 # 0.5 meters and 1 degrees threshold for successful registration
                 if distance_xyz > 0.5 or diff_yaw > 1.0:
-                    metrics[eval_mode]["new_suc_1_2"].append(0.0)
+                    metrics[eval_mode]["new_suc_0.5_1"].append(0.0)
                 else:
-                    metrics[eval_mode]["new_suc_1_2"].append(1.0)
+                    metrics[eval_mode]["new_suc_0.5_1"].append(1.0)
 
                 if self.icp_refine:
                     # calc errors using refined pose
@@ -626,9 +626,9 @@ class MetLocEvaluator(Evaluator):
 
                     # 0.5 meters and 1 degrees threshold for successful registration
                     if distance_xyz_refined > 0.5 or diff_yaw_refined > 1.0:
-                        metrics[eval_mode]["new_suc_1_2_refined"].append(0.0)
+                        metrics[eval_mode]["new_suc_0.5_1_refined"].append(0.0)
                     else:
-                        metrics[eval_mode]["new_suc_1_2_refined"].append(1.0)
+                        metrics[eval_mode]["new_suc_0.5_1_refined"].append(1.0)
 
         # Calculate mean metrics
         global_metrics["recall"] = {
@@ -923,6 +923,7 @@ def save_metrics_to_csv(metrics, output_dir):
         metrics (dict): The metrics dictionary containing eval_mode as keys.
         output_dir (str): Directory where CSV files will be saved.
     """
+    import os
 
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
@@ -932,21 +933,25 @@ def save_metrics_to_csv(metrics, output_dir):
         file_name = f"{eval_mode}_metrics.csv"
         file_path = os.path.join(output_dir, file_name)
 
-        # Prepare data for CSV writing
+        # Prepare keys and ensure all lists have consistent lengths by filling with None
         keys = list(data.keys())
-        rows = zip(*data.values())
+        max_length = max(len(data[key]) for key in keys)
+        normalized_data = {key: (values + [None] * (max_length - len(values))) for key, values in data.items()}
 
         # Write data to CSV file
         with open(file_path, mode="w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
 
-            # Write header (keys of the dictionary)
+            # Write header
             writer.writerow(keys)
 
             # Write each row of data
-            writer.writerows(rows)
+            for i in range(max_length):
+                row = [normalized_data[key][i] for key in keys]
+                writer.writerow(row)
 
         print(f"Metrics saved to {file_path}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate MinkLoc model")
