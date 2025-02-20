@@ -114,6 +114,7 @@ class PointCloudLoader:
         self.remove_ground_plane = True
         self.ground_plane_level = None
         self.set_properties()
+        self.log_file = './pc_shape.txt'
 
     def set_properties(self):
         # Set point cloud properties, such as ground_plane_level. Must be defined in inherited classes.
@@ -123,17 +124,25 @@ class PointCloudLoader:
         # Reads the point cloud from a disk and preprocess (optional removal of zero points and points on the ground
         # plane and below
         # file_pathname: relative file path
-        assert os.path.exists(
-            file_pathname
-        ), f"Cannot open point cloud: {file_pathname}"
-        pc = self.read_pc(file_pathname)
-        # assert pc.shape[1] == 3
-        if self.remove_zero_points:
-            mask = np.all(np.isclose(pc, 0), axis=1)
-            pc = pc[~mask]
-        if self.remove_ground_plane:
-            mask = pc[:, 2] > self.ground_plane_level
-            pc = pc[mask]
+        with open(self.log_file, "a") as log_file:
+            log_file.write(f"cloud,{file_pathname}\n")
+            assert os.path.exists(
+                file_pathname
+            ), f"Cannot open point cloud: {file_pathname}"
+
+            pc = self.read_pc(file_pathname)
+            # assert pc.shape[1] == 3
+            log_file.write(f"Original,{pc.shape}\n")
+
+            if self.remove_zero_points:
+                mask = np.all(np.isclose(pc, 0), axis=1)
+                pc = pc[~mask]
+                log_file.write(f"zero,{pc.shape}\n")
+
+            if self.remove_ground_plane:
+                mask = pc[:, 2] > self.ground_plane_level
+                pc = pc[mask]
+                log_file.write(f"ground,{pc.shape}\n")
 
         return pc
 
