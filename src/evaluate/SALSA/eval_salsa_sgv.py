@@ -521,8 +521,12 @@ class MetLocEvaluator(Evaluator):
                 # 强制初始化所有指标，确保列表长度一致
                 metrics[eval_mode]["all_rte"].append(rte)
                 metrics[eval_mode]["all_rre"].append(rre)
-                metrics[eval_mode]["all_distance_xyz"].append(distance_xyz)  # 始终记录实际计算的几何误差
-                metrics[eval_mode]["all_diff_yaw"].append(diff_yaw)          # 始终记录实际计算的航向角误差
+                metrics[eval_mode]["all_distance_xyz"].append(
+                    distance_xyz
+                )  # 始终记录实际计算的几何误差
+                metrics[eval_mode]["all_diff_yaw"].append(
+                    diff_yaw
+                )  # 始终记录实际计算的航向角误差
 
                 # 初始化局部定位相关指标为NaN（仅在成功时覆盖）
                 metrics[eval_mode]["rte"].append(np.nan)
@@ -531,9 +535,11 @@ class MetLocEvaluator(Evaluator):
                 metrics[eval_mode]["diff_yaw"].append(np.nan)
 
                 # 初始化成功/失败状态及inliers
-                metrics[eval_mode]["success"].append(0.0)                  # 默认失败
-                metrics[eval_mode]["failure_inliers"].append(inliers)      # 默认记录失败inliers
-                metrics[eval_mode]["success_inliers"].append(np.nan)         # 成功时覆盖
+                metrics[eval_mode]["success"].append(0.0)  # 默认失败
+                metrics[eval_mode]["failure_inliers"].append(
+                    inliers
+                )  # 默认记录失败inliers
+                metrics[eval_mode]["success_inliers"].append(np.nan)  # 成功时覆盖
 
                 # 初始化其他成功阈值指标
                 metrics[eval_mode]["new_suc_1_2"].append(0.0)
@@ -545,8 +551,8 @@ class MetLocEvaluator(Evaluator):
                     # 覆盖成功指标
                     metrics[eval_mode]["success"][-1] = 1.0
                     metrics[eval_mode]["success_inliers"][-1] = inliers
-                    metrics[eval_mode]["failure_inliers"][-1] = np.nan       # 清除失败记录
-                    
+                    metrics[eval_mode]["failure_inliers"][-1] = np.nan  # 清除失败记录
+
                     # 覆盖局部定位指标的实际值
                     metrics[eval_mode]["rte"][-1] = rte
                     metrics[eval_mode]["rre"][-1] = rre
@@ -560,7 +566,6 @@ class MetLocEvaluator(Evaluator):
                 # 检查最严格成功阈值（0.5m和1度）
                 if distance_xyz <= 0.5 and diff_yaw <= 1.0:
                     metrics[eval_mode]["new_suc_0.5_1"][-1] = 1.0
-
 
                 if self.icp_refine:
                     # calc errors using refined pose
@@ -619,8 +624,12 @@ class MetLocEvaluator(Evaluator):
                     # 强制初始化所有指标，确保列表长度一致
                     metrics[eval_mode]["all_rte_refined"].append(rte_refined)
                     metrics[eval_mode]["all_rre_refined"].append(rre_refined)
-                    metrics[eval_mode]["all_distance_xyz_refined"].append(distance_xyz_refined)  # 始终记录实际计算的几何误差
-                    metrics[eval_mode]["all_diff_yaw_refined"].append(diff_yaw_refined)          # 始终记录实际计算的航向角误差
+                    metrics[eval_mode]["all_distance_xyz_refined"].append(
+                        distance_xyz_refined
+                    )  # 始终记录实际计算的几何误差
+                    metrics[eval_mode]["all_diff_yaw_refined"].append(
+                        diff_yaw_refined
+                    )  # 始终记录实际计算的航向角误差
 
                     # 初始化局部定位相关指标为NaN（仅在成功时覆盖）
                     metrics[eval_mode]["rte_refined"].append(np.nan)
@@ -629,9 +638,13 @@ class MetLocEvaluator(Evaluator):
                     metrics[eval_mode]["diff_yaw_refined"].append(np.nan)
 
                     # 初始化成功/失败状态及inliers
-                    metrics[eval_mode]["success_refined"].append(0.0)                  # 默认失败
-                    metrics[eval_mode]["failure_inliers_refined"].append(inliers)      # 默认记录失败inliers
-                    metrics[eval_mode]["success_inliers_refined"].append(np.nan)         # 成功时覆盖
+                    metrics[eval_mode]["success_refined"].append(0.0)  # 默认失败
+                    metrics[eval_mode]["failure_inliers_refined"].append(
+                        inliers
+                    )  # 默认记录失败inliers
+                    metrics[eval_mode]["success_inliers_refined"].append(
+                        np.nan
+                    )  # 成功时覆盖
 
                     # 初始化其他成功阈值指标
                     metrics[eval_mode]["new_suc_1_2_refined"].append(0.0)
@@ -643,12 +656,16 @@ class MetLocEvaluator(Evaluator):
                         # 覆盖成功指标
                         metrics[eval_mode]["success_refined"][-1] = 1.0
                         metrics[eval_mode]["success_inliers_refined"][-1] = inliers
-                        metrics[eval_mode]["failure_inliers_refined"][-1] = np.nan       # 清除失败记录
-                        
+                        metrics[eval_mode]["failure_inliers_refined"][
+                            -1
+                        ] = np.nan  # 清除失败记录
+
                         # 覆盖局部定位指标的实际值
                         metrics[eval_mode]["rte_refined"][-1] = rte_refined
                         metrics[eval_mode]["rre_refined"][-1] = rre_refined
-                        metrics[eval_mode]["distance_xyz_refined"][-1] = distance_xyz_refined
+                        metrics[eval_mode]["distance_xyz_refined"][
+                            -1
+                        ] = distance_xyz_refined
                         metrics[eval_mode]["diff_yaw_refined"][-1] = diff_yaw_refined
 
                     # 检查更严格的成功阈值（1m和2度）
@@ -658,8 +675,6 @@ class MetLocEvaluator(Evaluator):
                     # 检查最严格成功阈值（0.5m和1度）
                     if distance_xyz_refined <= 0.5 and diff_yaw_refined <= 1.0:
                         metrics[eval_mode]["new_suc_0.5_1_refined"][-1] = 1.0
-
-
 
         # Calculate mean metrics
         global_metrics["recall"] = {
@@ -818,9 +833,13 @@ class MetLocEvaluator(Evaluator):
                         mean_metrics[eval_mode][f"{metric}_median"] = 0.0
                     else:
                         mean_metrics[eval_mode][metric] = np.nanmean(valid_values)
-                        mean_metrics[eval_mode][f"{metric}_median"] = np.nanmedian(valid_values)
+                        mean_metrics[eval_mode][f"{metric}_median"] = np.nanmedian(
+                            valid_values
+                        )
                         if metric == "t_ransac":
-                            mean_metrics[eval_mode]["t_ransac_sd"] = np.nanstd(valid_values)
+                            mean_metrics[eval_mode]["t_ransac_sd"] = np.nanstd(
+                                valid_values
+                            )
 
         print("\n", "Metric Localization:")
         for eval_mode in ["Initial", "Re-Ranked"]:
@@ -951,26 +970,33 @@ def print_model_size(model):
 
 def save_metrics_to_csv(metrics, output_dir):
     """
-    Save metrics data to separate CSV files for each eval_mode.
+    Save metrics data to separate CSV files for each eval_mode with timestamp to prevent overwriting.
 
     Args:
         metrics (dict): The metrics dictionary containing eval_mode as keys.
         output_dir (str): Directory where CSV files will be saved.
     """
     import os
+    from datetime import datetime
 
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
 
+    # Generate timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Example：20231023_154325
+
     for eval_mode, data in metrics.items():
-        # Define the file name based on eval_mode
-        file_name = f"{eval_mode}_metrics.csv"
+        # Add timestamp
+        file_name = f"{eval_mode}_metrics_{timestamp}.csv"
         file_path = os.path.join(output_dir, file_name)
 
         # Prepare keys and ensure all lists have consistent lengths by filling with None
         keys = list(data.keys())
         max_length = max(len(data[key]) for key in keys)
-        normalized_data = {key: (values + [None] * (max_length - len(values))) for key, values in data.items()}
+        normalized_data = {
+            key: (values + [None] * (max_length - len(values)))
+            for key, values in data.items()
+        }
 
         # Write data to CSV file
         with open(file_path, mode="w", newline="", encoding="utf-8") as file:
