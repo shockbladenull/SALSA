@@ -513,37 +513,54 @@ class MetLocEvaluator(Evaluator):
                 diff_yaw = diff_yaw % (2 * np.pi)
                 diff_yaw = (diff_yaw * 180) / np.pi
                 # ----------------------------------------------------------------------------------------------
+                # 修改后的代码段
+                metrics[eval_mode]["t_ransac"].append(t_ransac)  # 始终记录RANSAC时间
 
-                metrics[eval_mode]["t_ransac"].append(t_ransac)  # RANSAC time
-
+                # 初始化所有指标为默认值（失败状态）
+                # ---------------------------------------------------------------
+                # 强制初始化所有指标，确保列表长度一致
                 metrics[eval_mode]["all_rte"].append(rte)
                 metrics[eval_mode]["all_rre"].append(rre)
-                metrics[eval_mode]["all_distance_xyz"].append(distance_xyz)
-                metrics[eval_mode]["all_diff_yaw"].append(diff_yaw)
+                metrics[eval_mode]["all_distance_xyz"].append(distance_xyz)  # 始终记录实际计算的几何误差
+                metrics[eval_mode]["all_diff_yaw"].append(diff_yaw)          # 始终记录实际计算的航向角误差
 
-                # 2 meters and 5 degrees threshold for successful registration
-                if distance_xyz > 2.0 or diff_yaw > 5.0:
-                    metrics[eval_mode]["success"].append(0.0)
-                    metrics[eval_mode]["failure_inliers"].append(inliers)
-                else:
-                    metrics[eval_mode]["success"].append(1.0)
-                    metrics[eval_mode]["success_inliers"].append(inliers)
-                    metrics[eval_mode]["rte"].append(rte)
-                    metrics[eval_mode]["rre"].append(rre)
-                    metrics[eval_mode]["distance_xyz"].append(distance_xyz)
-                    metrics[eval_mode]["diff_yaw"].append(diff_yaw)
+                # 初始化局部定位相关指标为NaN（仅在成功时覆盖）
+                metrics[eval_mode]["rte"].append(np.nan)
+                metrics[eval_mode]["rre"].append(np.nan)
+                metrics[eval_mode]["distance_xyz"].append(np.nan)
+                metrics[eval_mode]["diff_yaw"].append(np.nan)
 
-                # 1 meters and 2 degrees threshold for successful registration
-                if distance_xyz > 1.0 or diff_yaw > 2.0:
-                    metrics[eval_mode]["new_suc_1_2"].append(0.0)
-                else:
-                    metrics[eval_mode]["new_suc_1_2"].append(1.0)
+                # 初始化成功/失败状态及inliers
+                metrics[eval_mode]["success"].append(0.0)                  # 默认失败
+                metrics[eval_mode]["failure_inliers"].append(inliers)      # 默认记录失败inliers
+                metrics[eval_mode]["success_inliers"].append(np.nan)         # 成功时覆盖
 
-                # 0.5 meters and 1 degrees threshold for successful registration
-                if distance_xyz > 0.5 or diff_yaw > 1.0:
-                    metrics[eval_mode]["new_suc_0.5_1"].append(0.0)
-                else:
-                    metrics[eval_mode]["new_suc_0.5_1"].append(1.0)
+                # 初始化其他成功阈值指标
+                metrics[eval_mode]["new_suc_1_2"].append(0.0)
+                metrics[eval_mode]["new_suc_0.5_1"].append(0.0)
+                # ---------------------------------------------------------------
+
+                # 检查是否为成功样本（2m和5度阈值）
+                if distance_xyz <= 2.0 and diff_yaw <= 5.0:
+                    # 覆盖成功指标
+                    metrics[eval_mode]["success"][-1] = 1.0
+                    metrics[eval_mode]["success_inliers"][-1] = inliers
+                    metrics[eval_mode]["failure_inliers"][-1] = np.nan       # 清除失败记录
+                    
+                    # 覆盖局部定位指标的实际值
+                    metrics[eval_mode]["rte"][-1] = rte
+                    metrics[eval_mode]["rre"][-1] = rre
+                    metrics[eval_mode]["distance_xyz"][-1] = distance_xyz
+                    metrics[eval_mode]["diff_yaw"][-1] = diff_yaw
+
+                # 检查更严格的成功阈值（1m和2度）
+                if distance_xyz <= 1.0 and diff_yaw <= 2.0:
+                    metrics[eval_mode]["new_suc_1_2"][-1] = 1.0
+
+                # 检查最严格成功阈值（0.5m和1度）
+                if distance_xyz <= 0.5 and diff_yaw <= 1.0:
+                    metrics[eval_mode]["new_suc_0.5_1"][-1] = 1.0
+
 
                 if self.icp_refine:
                     # calc errors using refined pose
@@ -596,39 +613,53 @@ class MetLocEvaluator(Evaluator):
                     diff_yaw_refined = diff_yaw_refined % (2 * np.pi)
                     diff_yaw_refined = (diff_yaw_refined * 180) / np.pi
                     # ----------------------------------------------------------------------------------------------
-
+                    # 修改后的代码段
+                    # 初始化所有指标为默认值（失败状态）
+                    # ---------------------------------------------------------------
+                    # 强制初始化所有指标，确保列表长度一致
                     metrics[eval_mode]["all_rte_refined"].append(rte_refined)
                     metrics[eval_mode]["all_rre_refined"].append(rre_refined)
-                    metrics[eval_mode]["all_distance_xyz_refined"].append(
-                        distance_xyz_refined
-                    )
-                    metrics[eval_mode]["all_diff_yaw_refined"].append(diff_yaw)
+                    metrics[eval_mode]["all_distance_xyz_refined"].append(distance_xyz_refined)  # 始终记录实际计算的几何误差
+                    metrics[eval_mode]["all_diff_yaw_refined"].append(diff_yaw_refined)          # 始终记录实际计算的航向角误差
 
-                    # 2 meters and 5 degrees threshold for successful registration
-                    if distance_xyz_refined > 2.0 or diff_yaw_refined > 5.0:
-                        metrics[eval_mode]["success_refined"].append(0.0)
-                        metrics[eval_mode]["failure_inliers_refined"].append(inliers)
-                    else:
-                        metrics[eval_mode]["success_refined"].append(1.0)
-                        metrics[eval_mode]["success_inliers_refined"].append(inliers)
-                        metrics[eval_mode]["rte_refined"].append(rte_refined)
-                        metrics[eval_mode]["rre_refined"].append(rre_refined)
-                        metrics[eval_mode]["distance_xyz_refined"].append(
-                            distance_xyz_refined
-                        )
-                        metrics[eval_mode]["diff_yaw_refined"].append(diff_yaw)
+                    # 初始化局部定位相关指标为NaN（仅在成功时覆盖）
+                    metrics[eval_mode]["rte_refined"].append(np.nan)
+                    metrics[eval_mode]["rre_refined"].append(np.nan)
+                    metrics[eval_mode]["distance_xyz_refined"].append(np.nan)
+                    metrics[eval_mode]["diff_yaw_refined"].append(np.nan)
 
-                    # 1 meters and 2 degrees threshold for successful registration
-                    if distance_xyz_refined > 1.0 or diff_yaw_refined > 2.0:
-                        metrics[eval_mode]["new_suc_1_2_refined"].append(0.0)
-                    else:
-                        metrics[eval_mode]["new_suc_1_2_refined"].append(1.0)
+                    # 初始化成功/失败状态及inliers
+                    metrics[eval_mode]["success_refined"].append(0.0)                  # 默认失败
+                    metrics[eval_mode]["failure_inliers_refined"].append(inliers)      # 默认记录失败inliers
+                    metrics[eval_mode]["success_inliers_refined"].append(np.nan)         # 成功时覆盖
 
-                    # 0.5 meters and 1 degrees threshold for successful registration
-                    if distance_xyz_refined > 0.5 or diff_yaw_refined > 1.0:
-                        metrics[eval_mode]["new_suc_0.5_1_refined"].append(0.0)
-                    else:
-                        metrics[eval_mode]["new_suc_0.5_1_refined"].append(1.0)
+                    # 初始化其他成功阈值指标
+                    metrics[eval_mode]["new_suc_1_2_refined"].append(0.0)
+                    metrics[eval_mode]["new_suc_0.5_1_refined"].append(0.0)
+                    # ---------------------------------------------------------------
+
+                    # 检查是否为成功样本（2m和5度阈值）
+                    if distance_xyz_refined <= 2.0 and diff_yaw_refined <= 5.0:
+                        # 覆盖成功指标
+                        metrics[eval_mode]["success_refined"][-1] = 1.0
+                        metrics[eval_mode]["success_inliers_refined"][-1] = inliers
+                        metrics[eval_mode]["failure_inliers_refined"][-1] = np.nan       # 清除失败记录
+                        
+                        # 覆盖局部定位指标的实际值
+                        metrics[eval_mode]["rte_refined"][-1] = rte_refined
+                        metrics[eval_mode]["rre_refined"][-1] = rre_refined
+                        metrics[eval_mode]["distance_xyz_refined"][-1] = distance_xyz_refined
+                        metrics[eval_mode]["diff_yaw_refined"][-1] = diff_yaw_refined
+
+                    # 检查更严格的成功阈值（1m和2度）
+                    if distance_xyz_refined <= 1.0 and diff_yaw_refined <= 2.0:
+                        metrics[eval_mode]["new_suc_1_2_refined"][-1] = 1.0
+
+                    # 检查最严格成功阈值（0.5m和1度）
+                    if distance_xyz_refined <= 0.5 and diff_yaw_refined <= 1.0:
+                        metrics[eval_mode]["new_suc_0.5_1_refined"][-1] = 1.0
+
+
 
         # Calculate mean metrics
         global_metrics["recall"] = {
@@ -780,13 +811,16 @@ class MetLocEvaluator(Evaluator):
                 mean_metrics[eval_mode] = {}
                 for metric in metrics[eval_mode]:
                     m_l = metrics[eval_mode][metric]
-                    if len(m_l) == 0:
+                    # 检查是否存在有效数据（非全NaN）
+                    valid_values = np.array(m_l, dtype=float)
+                    if np.all(np.isnan(valid_values)):
                         mean_metrics[eval_mode][metric] = 0.0
+                        mean_metrics[eval_mode][f"{metric}_median"] = 0.0
                     else:
-                        mean_metrics[eval_mode][metric] = np.mean(m_l)
-                        mean_metrics[eval_mode][f"{metric}_median"] = np.median(m_l)
+                        mean_metrics[eval_mode][metric] = np.nanmean(valid_values)
+                        mean_metrics[eval_mode][f"{metric}_median"] = np.nanmedian(valid_values)
                         if metric == "t_ransac":
-                            mean_metrics[eval_mode]["t_ransac_sd"] = np.std(m_l)
+                            mean_metrics[eval_mode]["t_ransac_sd"] = np.nanstd(valid_values)
 
         print("\n", "Metric Localization:")
         for eval_mode in ["Initial", "Re-Ranked"]:
