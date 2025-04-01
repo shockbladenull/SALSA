@@ -38,6 +38,11 @@ pip install --no-deps timm==0.9.7
 ```
 Install [SpTr](https://github.com/dvlab-research/SparseTransformer) from source.
 
+```bash
+export CC=/usr/bin/gcc-9\nexport CXX=/usr/bin/g++-9\n
+python3 setup.py install
+```
+
 
 ### 📊💾 Dataset Download
 The model is: 
